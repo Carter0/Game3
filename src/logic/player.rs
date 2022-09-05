@@ -3,10 +3,13 @@ use bevy::prelude::*;
 
 pub struct PlayerPlugin;
 
+const PLAYERSIZE: f32 = 40.0;
+
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(spawn_player)
             .add_system(move_player)
+            .add_system(shoot)
             .add_system(look_at_cursor);
     }
 }
@@ -22,7 +25,7 @@ fn spawn_player(mut commands: Commands) {
         .spawn()
         .insert_bundle(SpriteBundle {
             sprite: Sprite {
-                custom_size: Some(Vec2::new(40.0, 40.0)),
+                custom_size: Some(Vec2::new(PLAYERSIZE, PLAYERSIZE)),
                 ..Default::default()
             },
             ..Default::default()
@@ -84,5 +87,33 @@ fn look_at_cursor(windows: Res<Windows>, mut player_query: Query<&mut Transform,
 
         // Rotate the enemy to face the player.
         player_transform.rotation = rotate_to_cursor;
+    }
+}
+
+// The player shoots with space
+fn shoot(
+    player_query: Query<&Transform, With<Player>>,
+    mut commands: Commands,
+    keyboard_input: Res<Input<KeyCode>>,
+) {
+    let player_transform = player_query
+        .get_single()
+        .expect("Could not find a single player");
+
+    if keyboard_input.pressed(KeyCode::Space) {
+        let player_translation = player_transform.translation;
+
+        commands.spawn().insert_bundle(SpriteBundle {
+            sprite: Sprite {
+                custom_size: Some(Vec2::new(10.0, 10.0)),
+                ..Default::default()
+            },
+            transform: Transform::from_xyz(
+                player_translation.x,
+                player_translation.y + PLAYERSIZE + 20.0,
+                0.0,
+            ),
+            ..Default::default()
+        });
     }
 }

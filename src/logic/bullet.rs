@@ -19,3 +19,5 @@ fn move_bullets(mut bullet_query: Query<(&mut Transform, &Bullet)>, time: Res<Ti
         bullet_transform.translation += bullet.direction.extend(0.0) * time.delta_seconds() * 400.0;
     }
 }
+
+fn bullet_wall_collisions() {}

@@ -83,7 +83,7 @@ fn look_at_cursor(windows: Res<Windows>, mut player_query: Query<&mut Transform,
             (world_space_cursor_vec - player_transform.translation.truncate()).normalize();
 
         // Get the quaternion to rotate the player to the cursor.
-        // I am assuming the player is facing up at the start.
+        // The player is facing up.
         let rotate_to_cursor = Quat::from_rotation_arc(Vec3::Y, to_cursor.extend(0.));
 
         // Rotate the enemy to face the player.
@@ -96,12 +96,13 @@ fn shoot(
     player_query: Query<&Transform, With<Player>>,
     mut commands: Commands,
     keyboard_input: Res<Input<KeyCode>>,
+    buttons: Res<Input<MouseButton>>,
 ) {
     let player_transform = player_query
         .get_single()
         .expect("Could not find a single player");
 
-    if keyboard_input.just_pressed(KeyCode::Space) {
+    if keyboard_input.just_pressed(KeyCode::Space) || buttons.just_pressed(MouseButton::Left) {
         let player_translation = player_transform.translation;
 
         commands
@@ -111,14 +112,12 @@ fn shoot(
                     custom_size: Some(Vec2::new(10.0, 10.0)),
                     ..Default::default()
                 },
-                transform: Transform::from_xyz(
-                    player_translation.x,
-                    player_translation.y + PLAYERSIZE + 20.0,
-                    0.0,
-                )
-                .with_rotation(player_transform.rotation),
+                transform: Transform::from_xyz(player_translation.x, player_translation.y, 0.0)
+                    .with_rotation(player_transform.rotation),
                 ..Default::default()
             })
-            .insert(Bullet { speed: 400.0 });
+            .insert(Bullet {
+                direction: player_transform.local_y().truncate(),
+            });
     }
 }

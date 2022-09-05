@@ -1,0 +1,7 @@
+### Game Design Notes 
+
+The player is trapped inside some kind of box. Enemies routinely spawn and the player needs to shoot them as they appear. 
+The problem is that the player's bullets can also hurt the player and the bullets bounce around the room. The bullets will only stop bouncing around the room if they are
+hit with another bullet or they hit an enemy. 
+
+The player needs to survive as long as possible and rack up a high score.

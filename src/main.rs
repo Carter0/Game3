@@ -16,6 +16,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_startup_system(spawn_camera)
         .add_plugin(logic::player::PlayerPlugin)
+        .add_plugin(logic::bullet::BulletPlugin)
         .run();
 }
 

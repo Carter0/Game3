@@ -1,3 +1,4 @@
+use crate::logic::bullet::Bullet;
 use crate::{WINDOWHEIGHT, WINDOWWIDTH};
 use bevy::prelude::*;
 
@@ -100,20 +101,24 @@ fn shoot(
         .get_single()
         .expect("Could not find a single player");
 
-    if keyboard_input.pressed(KeyCode::Space) {
+    if keyboard_input.just_pressed(KeyCode::Space) {
         let player_translation = player_transform.translation;
 
-        commands.spawn().insert_bundle(SpriteBundle {
-            sprite: Sprite {
-                custom_size: Some(Vec2::new(10.0, 10.0)),
+        commands
+            .spawn()
+            .insert_bundle(SpriteBundle {
+                sprite: Sprite {
+                    custom_size: Some(Vec2::new(10.0, 10.0)),
+                    ..Default::default()
+                },
+                transform: Transform::from_xyz(
+                    player_translation.x,
+                    player_translation.y + PLAYERSIZE + 20.0,
+                    0.0,
+                )
+                .with_rotation(player_transform.rotation),
                 ..Default::default()
-            },
-            transform: Transform::from_xyz(
-                player_translation.x,
-                player_translation.y + PLAYERSIZE + 20.0,
-                0.0,
-            ),
-            ..Default::default()
-        });
+            })
+            .insert(Bullet { speed: 400.0 });
     }
 }

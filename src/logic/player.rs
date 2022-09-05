@@ -1,10 +1,13 @@
+use crate::{WINDOWHEIGHT, WINDOWWIDTH};
 use bevy::prelude::*;
 
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_startup_system(spawn_player).add_system(move_player);
+        app.add_startup_system(spawn_player)
+            .add_system(move_player)
+            .add_system(look_at_cursor);
     }
 }
 
@@ -54,19 +57,32 @@ fn move_player(
     transform.translation.y += move_delta.y * player.speed * delta_time;
 }
 
-// TODO finish this later, see trig video
 // The player always faces the cursor
 fn look_at_cursor(windows: Res<Windows>, mut player_query: Query<&mut Transform, With<Player>>) {
-
     // Games typically only have one window (the primary window).
     // For multi-window applications, you need to use a specific window ID here.
     let window = windows.get_primary().unwrap();
 
     // cursor is inside the window, position given
     if let Some(position) = window.cursor_position() {
+        // The position of the cursor is given from (0,0) in the top left to (screen width, screen height) in the bottom right.
+        // Most bevy coordinates are done with (0,0) in the middle of the screen.
+        // This translates from screen space to world space.
+        let world_space_cursor_vec = position + Vec2::new(-WINDOWWIDTH / 2.0, -WINDOWHEIGHT / 2.0);
 
-        let player_transform = player_query.get_single_mut().expect("Could not find a single player");
+        let mut player_transform = player_query
+            .get_single_mut()
+            .expect("Could not find a single player");
 
+        // Get the vector from the player to the cursor in 2D and normalize it.
+        let to_cursor =
+            (world_space_cursor_vec - player_transform.translation.truncate()).normalize();
+
+        // Get the quaternion to rotate the player to the cursor.
+        // I am assuming the player is facing up at the start.
+        let rotate_to_cursor = Quat::from_rotation_arc(Vec3::Y, to_cursor.extend(0.));
+
+        // Rotate the enemy to face the player.
+        player_transform.rotation = rotate_to_cursor;
     }
-
 }

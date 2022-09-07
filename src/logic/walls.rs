@@ -10,7 +10,10 @@ impl Plugin for WallsPlugin {
 }
 
 #[derive(Component)]
-struct Wall;
+pub struct Wall {
+    pub width: f32,
+    pub height: f32,
+}
 
 fn spawn_walls(mut commands: Commands) {
     // The ceiling
@@ -28,7 +31,10 @@ fn spawn_walls(mut commands: Commands) {
             transform: Transform::from_xyz(0.0, WINDOWHEIGHT / 2.0, 1.0),
             ..Default::default()
         })
-        .insert(Wall);
+        .insert(Wall {
+            width: ceiling_size_x,
+            height: ceiling_size_y,
+        });
 
     // The floor
     let floor_size_x = WINDOWWIDTH;
@@ -45,7 +51,10 @@ fn spawn_walls(mut commands: Commands) {
             transform: Transform::from_xyz(0.0, -WINDOWHEIGHT / 2.0, 1.0),
             ..Default::default()
         })
-        .insert(Wall);
+        .insert(Wall {
+            width: floor_size_x,
+            height: floor_size_y,
+        });
 
     // The Left Wall
     let left_wall_size_x = 40.0;
@@ -61,7 +70,10 @@ fn spawn_walls(mut commands: Commands) {
             transform: Transform::from_xyz(-WINDOWWIDTH / 2.0, 0.0, 1.0),
             ..Default::default()
         })
-        .insert(Wall);
+        .insert(Wall {
+            width: left_wall_size_x,
+            height: left_wall_size_y,
+        });
 
     // The Right Wall
     let right_wall_size_x = 40.0;
@@ -77,5 +89,8 @@ fn spawn_walls(mut commands: Commands) {
             transform: Transform::from_xyz(WINDOWWIDTH / 2.0, 0.0, 1.0),
             ..Default::default()
         })
-        .insert(Wall);
+        .insert(Wall {
+            width: right_wall_size_x,
+            height: right_wall_size_y,
+        });
 }

@@ -1,4 +1,5 @@
 use crate::logic::bullet::Bullet;
+use crate::logic::bullet::BULLETSIZE;
 use crate::{WINDOWHEIGHT, WINDOWWIDTH};
 use bevy::prelude::*;
 
@@ -109,7 +110,7 @@ fn shoot(
             .spawn()
             .insert_bundle(SpriteBundle {
                 sprite: Sprite {
-                    custom_size: Some(Vec2::new(10.0, 10.0)),
+                    custom_size: Some(Vec2::new(BULLETSIZE, BULLETSIZE)),
                     ..Default::default()
                 },
                 transform: Transform::from_xyz(player_translation.x, player_translation.y, 0.0)

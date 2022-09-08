@@ -5,3 +5,18 @@ The problem is that the player's bullets can also hurt the player and the bullet
 hit with another bullet or they hit an enemy. 
 
 The player needs to survive as long as possible and rack up a high score.
+
+### Enemies 
+
+Enemies Spawn randomly every 3 seconds or so and the player needs to shoot them.
+
+Questions 
+1. How do I randomly spawn enemies the way I want to 
+2. How should the enemies behave once spawned
+
+All enemies should spawn in at the edge of the level. In order to get that to work you need to randomly generate 
+the correct x and y positions for the enemy to spawn. As to the timing thing I think there is a way to specify a system 
+only run x seconds, ill need to double check that tho.
+
+The enemy should slowly follow the player. I think that level of interaction is good enough for now. 
+With all the bouncing balls that should be enough challenge.

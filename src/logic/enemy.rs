@@ -1,3 +1,4 @@
+use crate::logic::player::Player;
 use crate::{WINDOWHEIGHT, WINDOWWIDTH};
 use bevy::prelude::*;
 use bevy::time::FixedTimestep;
@@ -14,8 +15,15 @@ impl Plugin for EnemyPlugin {
             SystemSet::new()
                 .with_run_criteria(FixedTimestep::step(ENEMY_SPAWN_TIMESTEP))
                 .with_system(spawn_enemies),
-        );
+        )
+        .add_system(move_enemies);
     }
+}
+
+#[derive(Component)]
+struct Enemy {
+    // Speed is always positive
+    speed: f32,
 }
 
 enum SpawnSide {
@@ -70,13 +78,35 @@ fn spawn_enemies(mut commands: Commands) {
         ),
     };
 
-    commands.spawn().insert_bundle(SpriteBundle {
-        sprite: Sprite {
-            color: Color::MAROON,
-            custom_size: Some(Vec2::new(40.0, 40.0)),
+    commands
+        .spawn()
+        .insert_bundle(SpriteBundle {
+            sprite: Sprite {
+                color: Color::MAROON,
+                custom_size: Some(Vec2::new(40.0, 40.0)),
+                ..Default::default()
+            },
+            transform: Transform::from_translation(spawn_position.extend(0.0)),
             ..Default::default()
-        },
-        transform: Transform::from_translation(spawn_position.extend(0.0)),
-        ..Default::default()
-    });
+        })
+        .insert(Enemy { speed: 200.0 });
+}
+
+fn move_enemies(
+    mut enemy_query: Query<(&mut Transform, &Enemy), Without<Player>>,
+    player_query: Query<&Transform, (With<Player>, Without<Enemy>)>,
+    time: Res<Time>,
+) {
+    let player_transform = player_query
+        .get_single()
+        .expect("Could not find a single player.");
+
+    for (mut enemy_transform, enemy) in &mut enemy_query {
+        let vector_to_player = player_transform.translation;
+        let vector_to_enemy = enemy_transform.translation;
+        let direction_from_enemy_to_player = (vector_to_player - vector_to_enemy).normalize();
+
+        enemy_transform.translation +=
+            direction_from_enemy_to_player * enemy.speed * time.delta_seconds();
+    }
 }

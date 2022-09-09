@@ -1,14 +1,16 @@
+use crate::logic::enemy::{Enemy, ENEMY_SIZE};
 use crate::logic::walls::Wall;
 use bevy::prelude::*;
 use bevy::sprite::collide_aabb::{collide, Collision};
 
-pub const BULLETSIZE: f32 = 10.0;
+pub const BULLET_SIZE: f32 = 10.0;
 
 pub struct BulletPlugin;
 
 impl Plugin for BulletPlugin {
     fn build(&self, app: &mut App) {
         app.add_system(move_bullets)
+            .add_system(bullet_enemy_collisions)
             .add_system(bullet_wall_collisions);
     }
 }
@@ -37,7 +39,7 @@ fn bullet_wall_collisions(
                 wall_transform.translation,
                 Vec2::new(wall.width, wall.height),
                 bullet_transform.translation,
-                Vec2::new(BULLETSIZE, BULLETSIZE),
+                Vec2::new(BULLET_SIZE, BULLET_SIZE),
             ) {
                 match collision {
                     Collision::Left => {
@@ -54,6 +56,28 @@ fn bullet_wall_collisions(
                     }
                     Collision::Inside => {}
                 }
+            }
+        }
+    }
+}
+
+// When the bullet hits an enemy destroy both the
+// bullet and the enemy.
+fn bullet_enemy_collisions(
+    enemy_query: Query<(&Transform, Entity), With<Enemy>>,
+    bullet_query: Query<(&Transform, Entity), (With<Bullet>, Without<Enemy>)>,
+    mut commands: Commands,
+) {
+    for (enemy_transform, enemy_entity) in &enemy_query {
+        for (bullet_transform, bullet_entity) in &bullet_query {
+            if let Some(_collision) = collide(
+                bullet_transform.translation,
+                Vec2::new(BULLET_SIZE, BULLET_SIZE),
+                enemy_transform.translation,
+                Vec2::new(ENEMY_SIZE, ENEMY_SIZE),
+            ) {
+                commands.entity(enemy_entity).despawn();
+                commands.entity(bullet_entity).despawn();
             }
         }
     }

@@ -8,6 +8,7 @@ use std::fmt;
 pub struct EnemyPlugin;
 
 const ENEMY_SPAWN_TIMESTEP: f64 = 3.0;
+pub const ENEMY_SIZE: f32 = 40.0;
 
 impl Plugin for EnemyPlugin {
     fn build(&self, app: &mut App) {
@@ -21,7 +22,7 @@ impl Plugin for EnemyPlugin {
 }
 
 #[derive(Component)]
-struct Enemy {
+pub struct Enemy {
     // Speed is always positive
     speed: f32,
 }
@@ -83,7 +84,7 @@ fn spawn_enemies(mut commands: Commands) {
         .insert_bundle(SpriteBundle {
             sprite: Sprite {
                 color: Color::MAROON,
-                custom_size: Some(Vec2::new(40.0, 40.0)),
+                custom_size: Some(Vec2::new(ENEMY_SIZE, ENEMY_SIZE)),
                 ..Default::default()
             },
             transform: Transform::from_translation(spawn_position.extend(0.0)),
@@ -92,6 +93,7 @@ fn spawn_enemies(mut commands: Commands) {
         .insert(Enemy { speed: 200.0 });
 }
 
+// Enemies follow the player.
 fn move_enemies(
     mut enemy_query: Query<(&mut Transform, &Enemy), Without<Player>>,
     player_query: Query<&Transform, (With<Player>, Without<Enemy>)>,

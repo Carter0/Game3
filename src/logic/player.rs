@@ -1,5 +1,5 @@
 use crate::logic::bullet::Bullet;
-use crate::logic::bullet::BULLETSIZE;
+use crate::logic::bullet::BULLET_SIZE;
 use crate::{WINDOWHEIGHT, WINDOWWIDTH};
 use bevy::prelude::*;
 
@@ -93,6 +93,7 @@ fn look_at_cursor(windows: Res<Windows>, mut player_query: Query<&mut Transform,
 }
 
 // The player shoots with space
+// The bullet starts moving in the direction the player is facing.
 fn shoot(
     player_query: Query<&Transform, With<Player>>,
     mut commands: Commands,
@@ -110,7 +111,7 @@ fn shoot(
             .spawn()
             .insert_bundle(SpriteBundle {
                 sprite: Sprite {
-                    custom_size: Some(Vec2::new(BULLETSIZE, BULLETSIZE)),
+                    custom_size: Some(Vec2::new(BULLET_SIZE, BULLET_SIZE)),
                     ..Default::default()
                 },
                 transform: Transform::from_xyz(player_translation.x, player_translation.y, 0.0)

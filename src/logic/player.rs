@@ -1,17 +1,20 @@
 use crate::logic::bullet::Bullet;
 use crate::logic::bullet::BULLET_SIZE;
+use crate::logic::walls::Wall;
 use crate::{WINDOWHEIGHT, WINDOWWIDTH};
 use bevy::prelude::*;
+use bevy::sprite::collide_aabb::{collide, Collision};
 
 pub struct PlayerPlugin;
 
-const PLAYERSIZE: f32 = 40.0;
+pub const PLAYER_SIZE: f32 = 40.0;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(spawn_player)
             .add_system(move_player)
             .add_system(shoot)
+            .add_system(player_wall_collisions)
             .add_system(look_at_cursor);
     }
 }
@@ -27,7 +30,7 @@ fn spawn_player(mut commands: Commands) {
         .spawn()
         .insert_bundle(SpriteBundle {
             sprite: Sprite {
-                custom_size: Some(Vec2::new(PLAYERSIZE, PLAYERSIZE)),
+                custom_size: Some(Vec2::new(PLAYER_SIZE, PLAYER_SIZE)),
                 ..Default::default()
             },
             ..Default::default()
@@ -114,12 +117,65 @@ fn shoot(
                     custom_size: Some(Vec2::new(BULLET_SIZE, BULLET_SIZE)),
                     ..Default::default()
                 },
-                transform: Transform::from_xyz(player_translation.x, player_translation.y, 0.0)
-                    .with_rotation(player_transform.rotation),
+                // Scale the local y unit vector so that the bullet does not
+                // immediately collide with the player.
+                transform: Transform::from_translation(
+                    player_translation + player_transform.local_y() * 40.0,
+                ),
                 ..Default::default()
             })
             .insert(Bullet {
                 direction: player_transform.local_y().truncate(),
             });
+    }
+}
+
+fn player_wall_collisions(
+    mut player_query: Query<&mut Transform, With<Player>>,
+    walls_query: Query<(&Transform, &Wall), Without<Player>>,
+) {
+    let mut player_transform = player_query
+        .get_single_mut()
+        .expect("Could not find a single player");
+
+    for (wall_transform, wall) in &walls_query {
+        if let Some(collision) = collide(
+            wall_transform.translation,
+            Vec2::new(wall.width, wall.height),
+            player_transform.translation,
+            Vec2::new(PLAYER_SIZE, PLAYER_SIZE),
+        ) {
+            match collision {
+                Collision::Left => {
+                    player_transform.translation = Vec3::new(
+                        -WINDOWWIDTH / 2.0 + wall.width,
+                        player_transform.translation.y,
+                        0.0,
+                    );
+                }
+                Collision::Right => {
+                    player_transform.translation = Vec3::new(
+                        WINDOWWIDTH / 2.0 - wall.width,
+                        player_transform.translation.y,
+                        0.0,
+                    );
+                }
+                Collision::Top => {
+                    player_transform.translation = Vec3::new(
+                        player_transform.translation.x,
+                        WINDOWHEIGHT / 2.0 - wall.height,
+                        0.0,
+                    );
+                }
+                Collision::Bottom => {
+                    player_transform.translation = Vec3::new(
+                        player_transform.translation.x,
+                        -WINDOWHEIGHT / 2.0 + wall.height,
+                        0.0,
+                    );
+                }
+                Collision::Inside => {}
+            }
+        }
     }
 }

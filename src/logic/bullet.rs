@@ -1,4 +1,5 @@
 use crate::logic::enemy::{Enemy, ENEMY_SIZE};
+use crate::logic::player::{Player, PLAYER_SIZE};
 use crate::logic::walls::Wall;
 use bevy::prelude::*;
 use bevy::sprite::collide_aabb::{collide, Collision};
@@ -11,6 +12,7 @@ impl Plugin for BulletPlugin {
     fn build(&self, app: &mut App) {
         app.add_system(move_bullets)
             .add_system(bullet_enemy_collisions)
+            .add_system(bullet_player_collisions)
             .add_system(bullet_wall_collisions);
     }
 }
@@ -79,6 +81,30 @@ fn bullet_enemy_collisions(
                 commands.entity(enemy_entity).despawn();
                 commands.entity(bullet_entity).despawn();
             }
+        }
+    }
+}
+
+// When the bullet hits the player destroy both the
+// bullet and the player.
+fn bullet_player_collisions(
+    player_query: Query<(&Transform, Entity), With<Player>>,
+    bullet_query: Query<(&Transform, Entity), (With<Bullet>, Without<Player>)>,
+    mut commands: Commands,
+) {
+    let (player_transform, player_entity) = player_query
+        .get_single()
+        .expect("Could not find single player");
+
+    for (bullet_transform, bullet_entity) in &bullet_query {
+        if let Some(_collision) = collide(
+            bullet_transform.translation,
+            Vec2::new(BULLET_SIZE, BULLET_SIZE),
+            player_transform.translation,
+            Vec2::new(PLAYER_SIZE, PLAYER_SIZE),
+        ) {
+            commands.entity(player_entity).despawn();
+            commands.entity(bullet_entity).despawn();
         }
     }
 }

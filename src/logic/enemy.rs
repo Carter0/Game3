@@ -2,6 +2,7 @@ use crate::{WINDOWHEIGHT, WINDOWWIDTH};
 use bevy::prelude::*;
 use bevy::time::FixedTimestep;
 use rand::Rng;
+use std::fmt;
 
 pub struct EnemyPlugin;
 
@@ -24,6 +25,17 @@ enum SpawnSide {
     Down,
 }
 
+impl fmt::Display for SpawnSide {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            SpawnSide::Left => write!(f, "Left"),
+            SpawnSide::Right => write!(f, "Right"),
+            SpawnSide::Up => write!(f, "Up"),
+            SpawnSide::Down => write!(f, "Down"),
+        }
+    }
+}
+
 fn get_spawn_side(integer: i8) -> SpawnSide {
     match integer {
         1 => SpawnSide::Left,
@@ -33,18 +45,29 @@ fn get_spawn_side(integer: i8) -> SpawnSide {
     }
 }
 
-// TODO debug this nonsense lol
 // NOTE enemy spawn time will need to be configured based on feedback
 // Enemies spawn randomly on the sides of the arena every 3 seconds.
 fn spawn_enemies(mut commands: Commands) {
     let mut rng = rand::thread_rng();
-    let spawn_side = get_spawn_side(rng.gen_range(1..=1));
+    let spawn_side = get_spawn_side(rng.gen_range(1..=4));
 
     let spawn_position: Vec2 = match spawn_side {
-        SpawnSide::Left => Vec2::new(-WINDOWWIDTH / 2.0 + 40.0, rng.gen_range(1.0..=WINDOWHEIGHT)),
-        SpawnSide::Right => Vec2::new(WINDOWWIDTH / 2.0 - 40.0, rng.gen_range(1.0..=WINDOWHEIGHT)),
-        SpawnSide::Up => Vec2::new(WINDOWHEIGHT / 2.0, rng.gen_range(1.0..=WINDOWWIDTH)),
-        SpawnSide::Down => Vec2::new(-WINDOWHEIGHT / 2.0, rng.gen_range(1.0..=WINDOWWIDTH)),
+        SpawnSide::Left => Vec2::new(
+            -WINDOWWIDTH / 2.0 + 40.0,
+            rng.gen_range(-WINDOWHEIGHT / 2.0..=WINDOWHEIGHT / 2.0),
+        ),
+        SpawnSide::Right => Vec2::new(
+            WINDOWWIDTH / 2.0 - 40.0,
+            rng.gen_range(-WINDOWHEIGHT / 2.0..=WINDOWHEIGHT / 2.0),
+        ),
+        SpawnSide::Up => Vec2::new(
+            rng.gen_range(-WINDOWWIDTH / 2.0..=WINDOWWIDTH / 2.0),
+            WINDOWHEIGHT / 2.0 - 40.0,
+        ),
+        SpawnSide::Down => Vec2::new(
+            rng.gen_range(-WINDOWWIDTH / 2.0..=WINDOWWIDTH / 2.0),
+            -WINDOWHEIGHT / 2.0 + 40.0,
+        ),
     };
 
     commands.spawn().insert_bundle(SpriteBundle {

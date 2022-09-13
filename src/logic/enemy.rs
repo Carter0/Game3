@@ -54,7 +54,6 @@ fn get_spawn_side(integer: i8) -> SpawnSide {
     }
 }
 
-// NOTE enemy spawn time will need to be configured based on feedback
 // Enemies spawn randomly on the sides of the arena every 3 seconds.
 fn spawn_enemies(mut commands: Commands) {
     let mut rng = rand::thread_rng();

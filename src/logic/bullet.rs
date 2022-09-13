@@ -5,6 +5,7 @@ use bevy::prelude::*;
 use bevy::sprite::collide_aabb::{collide, Collision};
 
 pub const BULLET_SIZE: f32 = 10.0;
+const BULLET_SPEED: f32 = 400.0;
 
 pub struct BulletPlugin;
 
@@ -26,7 +27,8 @@ pub struct Bullet {
 // Bullets move forward at a constant velocity
 fn move_bullets(mut bullet_query: Query<(&mut Transform, &Bullet)>, time: Res<Time>) {
     for (mut bullet_transform, bullet) in &mut bullet_query {
-        bullet_transform.translation += bullet.direction.extend(0.0) * time.delta_seconds() * 400.0;
+        bullet_transform.translation +=
+            bullet.direction.extend(0.0) * time.delta_seconds() * BULLET_SPEED;
     }
 }
 

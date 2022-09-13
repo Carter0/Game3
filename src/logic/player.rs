@@ -73,14 +73,14 @@ fn look_at_cursor(windows: Res<Windows>, mut player_query: Query<&mut Transform,
 
     // cursor is inside the window, position given
     if let Some(position) = window.cursor_position() {
+        let mut player_transform = player_query
+            .get_single_mut()
+            .expect("Could not find a single player");
+
         // The position of the cursor is given from (0,0) in the top left to (screen width, screen height) in the bottom right.
         // Most bevy coordinates are done with (0,0) in the middle of the screen.
         // This translates from screen space to world space.
         let world_space_cursor_vec = position + Vec2::new(-WINDOWWIDTH / 2.0, -WINDOWHEIGHT / 2.0);
-
-        let mut player_transform = player_query
-            .get_single_mut()
-            .expect("Could not find a single player");
 
         // Get the vector from the player to the cursor in 2D and normalize it.
         let to_cursor =
@@ -130,6 +130,7 @@ fn shoot(
     }
 }
 
+// The player cannot move outside the arena
 fn player_wall_collisions(
     mut player_query: Query<&mut Transform, With<Player>>,
     walls_query: Query<(&Transform, &Wall), Without<Player>>,

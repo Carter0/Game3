@@ -19,6 +19,7 @@ fn main() {
         .add_plugin(logic::walls::WallsPlugin)
         .add_plugin(logic::bullet::BulletPlugin)
         .add_plugin(logic::enemy::EnemyPlugin)
+        .add_plugin(logic::score::ScorePlugin)
         .run();
 }
 

@@ -1,6 +1,7 @@
-use crate::logic::player::Player;
+use crate::logic::player::{Player, PLAYER_SIZE};
 use crate::{WINDOWHEIGHT, WINDOWWIDTH};
 use bevy::prelude::*;
+use bevy::sprite::collide_aabb::collide;
 use bevy::time::FixedTimestep;
 use rand::Rng;
 use std::fmt;
@@ -17,7 +18,8 @@ impl Plugin for EnemyPlugin {
                 .with_run_criteria(FixedTimestep::step(ENEMY_SPAWN_TIMESTEP))
                 .with_system(spawn_enemies),
         )
-        .add_system(move_enemies);
+        .add_system(move_enemies)
+        .add_system(enemy_player_collisions);
     }
 }
 
@@ -109,5 +111,27 @@ fn move_enemies(
 
         enemy_transform.translation +=
             direction_from_enemy_to_player * enemy.speed * time.delta_seconds();
+    }
+}
+
+// Enemies kill the player if they touch them
+fn enemy_player_collisions(
+    enemy_query: Query<&Transform, With<Enemy>>,
+    player_query: Query<(&Transform, Entity), (With<Player>, Without<Enemy>)>,
+    mut commands: Commands,
+) {
+    let (player_transform, player_entity) = player_query
+        .get_single()
+        .expect("Could not find single player");
+
+    for enemy_transform in &enemy_query {
+        if let Some(_collision) = collide(
+            enemy_transform.translation,
+            Vec2::new(ENEMY_SIZE, ENEMY_SIZE),
+            player_transform.translation,
+            Vec2::new(PLAYER_SIZE, PLAYER_SIZE),
+        ) {
+            commands.entity(player_entity).despawn();
+        }
     }
 }

@@ -16,7 +16,7 @@ struct Score {
 }
 
 // NOTE for UI, the origin is in the bottom left corner.
-// You need to use the recti n style in believe
+// The score UI is in the top left of the screen
 fn spawn_score_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
     let score_text: Text = Text::from_sections([
         TextSection::new(

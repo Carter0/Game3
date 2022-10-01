@@ -5,7 +5,7 @@ use crate::logic::walls::Wall;
 use bevy::prelude::*;
 use bevy::sprite::collide_aabb::{collide, Collision};
 
-pub const BULLET_SIZE: f32 = 10.0;
+pub const BULLET_SIZE: f32 = 30.0;
 const BULLET_SPEED: f32 = 400.0;
 
 pub struct BulletPlugin;

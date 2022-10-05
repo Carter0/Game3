@@ -20,6 +20,7 @@ fn main() {
         .add_plugin(logic::bullet::BulletPlugin)
         .add_plugin(logic::enemy::EnemyPlugin)
         .add_plugin(logic::score::ScorePlugin)
+        .add_plugin(logic::ammo::AmmoPlugin)
         .run();
 }
 

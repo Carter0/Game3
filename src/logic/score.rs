@@ -60,10 +60,10 @@ fn spawn_score_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 // Every time an enemy dies the score gets updated by one
 fn update_score_text(
-    mut add_to_score_event: EventReader<EnemyDeathEvent>,
+    mut enemy_death_events: EventReader<EnemyDeathEvent>,
     mut score_query: Query<(&mut Text, &mut Score)>,
 ) {
-    for _add_to_score_event in add_to_score_event.iter() {
+    for _enemy_death_event in enemy_death_events.iter() {
         let (mut score_text, mut score_component) = score_query
             .get_single_mut()
             .expect("Could not find a single score component");

@@ -83,7 +83,9 @@ fn bullet_enemy_collisions(
             ) {
                 commands.entity(enemy_entity).despawn();
                 commands.entity(bullet_entity).despawn();
-                add_to_score.send(EnemyDeathEvent {});
+                add_to_score.send(EnemyDeathEvent {
+                    death_position: bullet_transform.translation,
+                });
             }
         }
     }

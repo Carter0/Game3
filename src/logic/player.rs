@@ -1,3 +1,4 @@
+use crate::logic::ammo::{Ammo, BULLET_HEIGHT, BULLET_WIDTH};
 use crate::logic::bullet::Bullet;
 use crate::logic::bullet::BULLET_SIZE;
 use crate::logic::walls::Wall;
@@ -15,6 +16,7 @@ impl Plugin for PlayerPlugin {
             .add_system(move_player)
             .add_system(shoot)
             .add_system(player_wall_collisions)
+            .add_system(collect_ammo)
             .add_system(look_at_cursor);
     }
 }
@@ -23,6 +25,7 @@ impl Plugin for PlayerPlugin {
 pub struct Player {
     // Speed is never negative
     speed: f32,
+    ammo: u8,
 }
 
 fn spawn_player(mut commands: Commands) {
@@ -35,7 +38,10 @@ fn spawn_player(mut commands: Commands) {
             },
             ..Default::default()
         })
-        .insert(Player { speed: 300.0 });
+        .insert(Player {
+            speed: 300.0,
+            ammo: 3,
+        });
 }
 
 // Move the player with WASD or the arrow keys
@@ -98,35 +104,40 @@ fn look_at_cursor(windows: Res<Windows>, mut player_query: Query<&mut Transform,
 // The player shoots with space
 // The bullet starts moving in the direction the player is facing.
 fn shoot(
-    player_query: Query<&Transform, With<Player>>,
+    mut player_query: Query<(&Transform, &mut Player)>,
     mut commands: Commands,
     keyboard_input: Res<Input<KeyCode>>,
     buttons: Res<Input<MouseButton>>,
 ) {
-    let player_transform = player_query
-        .get_single()
+    let (player_transform, mut player) = player_query
+        .get_single_mut()
         .expect("Could not find a single player");
 
     if keyboard_input.just_pressed(KeyCode::Space) || buttons.just_pressed(MouseButton::Left) {
         let player_translation = player_transform.translation;
 
-        commands
-            .spawn()
-            .insert_bundle(SpriteBundle {
-                sprite: Sprite {
-                    custom_size: Some(Vec2::new(BULLET_SIZE, BULLET_SIZE)),
+        // The player cannot shoot if they have no ammunition
+        if player.ammo > 0 {
+            commands
+                .spawn()
+                .insert_bundle(SpriteBundle {
+                    sprite: Sprite {
+                        custom_size: Some(Vec2::new(BULLET_SIZE, BULLET_SIZE)),
+                        ..Default::default()
+                    },
+                    // Scale the local y unit vector so that the bullet does not
+                    // immediately collide with the player.
+                    transform: Transform::from_translation(
+                        player_translation + player_transform.local_y() * 50.0,
+                    ),
                     ..Default::default()
-                },
-                // Scale the local y unit vector so that the bullet does not
-                // immediately collide with the player.
-                transform: Transform::from_translation(
-                    player_translation + player_transform.local_y() * 50.0,
-                ),
-                ..Default::default()
-            })
-            .insert(Bullet {
-                direction: player_transform.local_y().truncate(),
-            });
+                })
+                .insert(Bullet {
+                    direction: player_transform.local_y().truncate(),
+                });
+
+            player.ammo -= 1;
+        }
     }
 }
 
@@ -176,6 +187,35 @@ fn player_wall_collisions(
                     );
                 }
                 Collision::Inside => {}
+            }
+        }
+    }
+}
+
+// Player collects the ammo by passing over it
+fn collect_ammo(
+    mut player_query: Query<(&Transform, &mut Player)>,
+    ammo_query: Query<(&Transform, Entity), (With<Ammo>, Without<Player>)>,
+    mut commands: Commands,
+) {
+    let (player_transform, mut player) = player_query
+        .get_single_mut()
+        .expect("Could not find a single player");
+
+    for (ammo_transform, ammo_entity) in &ammo_query {
+        if let Some(_collision) = collide(
+            player_transform.translation,
+            Vec2::new(PLAYER_SIZE, PLAYER_SIZE),
+            ammo_transform.translation,
+            Vec2::new(BULLET_WIDTH, BULLET_HEIGHT),
+        ) {
+            commands.entity(ammo_entity).despawn();
+
+            player.ammo += 1;
+
+            // The player cannot have more than 10 bullets
+            if player.ammo > 10 {
+                player.ammo = 10;
             }
         }
     }

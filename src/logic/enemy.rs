@@ -30,7 +30,9 @@ pub struct Enemy {
     speed: f32,
 }
 
-pub struct EnemyDeathEvent();
+pub struct EnemyDeathEvent {
+    pub death_position: Vec3,
+}
 
 enum SpawnSide {
     Left,

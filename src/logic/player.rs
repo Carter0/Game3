@@ -102,14 +102,10 @@ fn shoot(
     mut commands: Commands,
     keyboard_input: Res<Input<KeyCode>>,
     buttons: Res<Input<MouseButton>>,
-    asset_server: Res<AssetServer>,
 ) {
     let player_transform = player_query
         .get_single()
         .expect("Could not find a single player");
-
-    // TODO make the bullets blink
-    let bullet_handle: Handle<Image> = asset_server.load("art/bullet-1.png");
 
     if keyboard_input.just_pressed(KeyCode::Space) || buttons.just_pressed(MouseButton::Left) {
         let player_translation = player_transform.translation;
@@ -126,7 +122,6 @@ fn shoot(
                 transform: Transform::from_translation(
                     player_translation + player_transform.local_y() * 50.0,
                 ),
-                texture: bullet_handle,
                 ..Default::default()
             })
             .insert(Bullet {

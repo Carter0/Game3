@@ -1,6 +1,5 @@
-use crate::logic::enemy::{Enemy, ENEMY_SIZE};
+use crate::logic::enemy::{Enemy, EnemyDeathEvent, ENEMY_SIZE};
 use crate::logic::player::{Player, PLAYER_SIZE};
-use crate::logic::score::AddToScoreEvent;
 use crate::logic::walls::Wall;
 use bevy::prelude::*;
 use bevy::sprite::collide_aabb::{collide, Collision};
@@ -71,7 +70,7 @@ fn bullet_wall_collisions(
 fn bullet_enemy_collisions(
     enemy_query: Query<(&Transform, Entity), With<Enemy>>,
     bullet_query: Query<(&Transform, Entity), (With<Bullet>, Without<Enemy>)>,
-    mut add_to_score: EventWriter<AddToScoreEvent>,
+    mut add_to_score: EventWriter<EnemyDeathEvent>,
     mut commands: Commands,
 ) {
     for (enemy_transform, enemy_entity) in &enemy_query {
@@ -84,7 +83,7 @@ fn bullet_enemy_collisions(
             ) {
                 commands.entity(enemy_entity).despawn();
                 commands.entity(bullet_entity).despawn();
-                add_to_score.send(AddToScoreEvent {});
+                add_to_score.send(EnemyDeathEvent {});
             }
         }
     }

@@ -19,6 +19,7 @@ impl Plugin for EnemyPlugin {
                 .with_system(spawn_enemies),
         )
         .add_system(move_enemies)
+        .add_event::<EnemyDeathEvent>()
         .add_system(enemy_player_collisions);
     }
 }
@@ -28,6 +29,8 @@ pub struct Enemy {
     // Speed is always positive
     speed: f32,
 }
+
+pub struct EnemyDeathEvent();
 
 enum SpawnSide {
     Left,

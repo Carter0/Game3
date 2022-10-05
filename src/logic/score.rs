@@ -1,3 +1,4 @@
+use crate::logic::enemy::EnemyDeathEvent;
 use bevy::prelude::*;
 
 pub struct ScorePlugin;
@@ -5,7 +6,6 @@ pub struct ScorePlugin;
 impl Plugin for ScorePlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(spawn_score_ui)
-            .add_event::<AddToScoreEvent>()
             .add_system(update_score_text);
     }
 }
@@ -58,11 +58,9 @@ fn spawn_score_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
         .insert(Score { value: 0 });
 }
 
-pub struct AddToScoreEvent();
-
 // Every time an enemy dies the score gets updated by one
 fn update_score_text(
-    mut add_to_score_event: EventReader<AddToScoreEvent>,
+    mut add_to_score_event: EventReader<EnemyDeathEvent>,
     mut score_query: Query<(&mut Text, &mut Score)>,
 ) {
     for _add_to_score_event in add_to_score_event.iter() {

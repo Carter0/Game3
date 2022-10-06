@@ -1,4 +1,5 @@
 use crate::logic::enemy::EnemyDeathEvent;
+use crate::logic::player::{Player, STARTING_AMMO};
 use bevy::prelude::*;
 
 pub struct AmmoPlugin;
@@ -8,7 +9,9 @@ pub const BULLET_HEIGHT: f32 = 30.0;
 
 impl Plugin for AmmoPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(spawn_ammo).add_startup_system(show_ammo_ui);
+        app.add_system(spawn_ammo)
+            .add_startup_system(show_ammo_ui)
+            .add_system(update_ammo_ui);
     }
 }
 
@@ -48,7 +51,7 @@ fn show_ammo_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
             },
         ),
         TextSection::new(
-            0.to_string(),
+            STARTING_AMMO.to_string(),
             TextStyle {
                 font: asset_server.load("fonts/FiraMono-Medium.ttf"),
                 font_size: 60.0,
@@ -78,5 +81,18 @@ fn show_ammo_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
         .insert(AmmoUI);
 }
 
-// TODO you need an event for when the player fires a bullet
-fn update_ammo_ui(mut ammo_ui_query: Query<&mut Text, With<AmmoUI>>) {}
+// Update the ammo ui whenever the player's ammo changes
+fn update_ammo_ui(
+    mut ammo_ui_query: Query<&mut Text, With<AmmoUI>>,
+    player_query: Query<&Player, Changed<Player>>,
+) {
+    let mut ammo_ui = ammo_ui_query
+        .get_single_mut()
+        .expect("Could not find the ammo ui");
+
+    // NOTE
+    // This requires a loop because most of the time no player component is changing
+    for player in &player_query {
+        ammo_ui.sections[1].value = player.ammo.to_string();
+    }
+}

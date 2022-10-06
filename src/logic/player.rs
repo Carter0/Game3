@@ -9,6 +9,7 @@ use bevy::sprite::collide_aabb::{collide, Collision};
 pub struct PlayerPlugin;
 
 pub const PLAYER_SIZE: f32 = 40.0;
+pub const STARTING_AMMO: u8 = 3;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
@@ -25,7 +26,7 @@ impl Plugin for PlayerPlugin {
 pub struct Player {
     // Speed is never negative
     speed: f32,
-    ammo: u8,
+    pub ammo: u8,
 }
 
 fn spawn_player(mut commands: Commands) {
@@ -40,7 +41,7 @@ fn spawn_player(mut commands: Commands) {
         })
         .insert(Player {
             speed: 300.0,
-            ammo: 3,
+            ammo: STARTING_AMMO,
         });
 }
 

@@ -65,13 +65,11 @@ fn show_ammo_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
         .insert_bundle(TextBundle {
             text: score_text,
             style: Style {
-                // Flex end is making the node go to the top of the screen
-                // since the origin is in the bottom left.
-                align_self: AlignSelf::Baseline,
-                // Move the node a little over
+                align_self: AlignSelf::FlexEnd,
+                position_type: PositionType::Absolute,
                 position: UiRect {
-                    left: Val::Px(0.0),
-                    top: Val::Px(0.0),
+                    bottom: Val::Px(15.0),
+                    right: Val::Px(25.0),
                     ..default()
                 },
                 ..Default::default()

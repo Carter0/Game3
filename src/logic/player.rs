@@ -2,7 +2,7 @@ use crate::logic::ammo::{Ammo, BULLET_HEIGHT, BULLET_WIDTH};
 use crate::logic::bullet::Bullet;
 use crate::logic::bullet::BULLET_SIZE;
 use crate::logic::walls::Wall;
-use crate::{WINDOWHEIGHT, WINDOWWIDTH};
+use crate::{Collidable, WINDOWHEIGHT, WINDOWWIDTH};
 use bevy::prelude::*;
 use bevy::sprite::collide_aabb::{collide, Collision};
 
@@ -16,7 +16,7 @@ impl Plugin for PlayerPlugin {
         app.add_startup_system(spawn_player)
             .add_system(move_player)
             .add_system(shoot)
-            .add_system(player_wall_collisions)
+            // .add_system(player_wall_collisions)
             .add_system(collect_ammo)
             .add_system(look_at_cursor);
     }
@@ -30,11 +30,13 @@ pub struct Player {
 }
 
 fn spawn_player(mut commands: Commands) {
+    let player_size = Vec2::new(PLAYER_SIZE, PLAYER_SIZE);
+
     commands
         .spawn()
         .insert_bundle(SpriteBundle {
             sprite: Sprite {
-                custom_size: Some(Vec2::new(PLAYER_SIZE, PLAYER_SIZE)),
+                custom_size: Some(player_size),
                 ..Default::default()
             },
             ..Default::default()
@@ -42,7 +44,8 @@ fn spawn_player(mut commands: Commands) {
         .insert(Player {
             speed: 300.0,
             ammo: STARTING_AMMO,
-        });
+        })
+        .insert(Collidable);
 }
 
 // Move the player with WASD or the arrow keys

@@ -2,7 +2,7 @@ use crate::logic::ammo::{Ammo, BULLET_HEIGHT, BULLET_WIDTH};
 use crate::logic::bullet::Bullet;
 use crate::logic::bullet::BULLET_SIZE;
 use crate::logic::walls::Wall;
-use crate::{Collidable, WINDOWHEIGHT, WINDOWWIDTH};
+use crate::{Movement, RigidBodyType, WINDOWHEIGHT, WINDOWWIDTH};
 use bevy::prelude::*;
 use bevy::sprite::collide_aabb::{collide, Collision};
 
@@ -14,9 +14,8 @@ pub const STARTING_AMMO: u8 = 3;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_startup_system(spawn_player)
-            .add_system(move_player)
+            .add_system(player_keyboard_input)
             .add_system(shoot)
-            // .add_system(player_wall_collisions)
             .add_system(collect_ammo)
             .add_system(look_at_cursor);
     }
@@ -24,8 +23,7 @@ impl Plugin for PlayerPlugin {
 
 #[derive(Component)]
 pub struct Player {
-    // Speed is never negative
-    speed: f32,
+    // Ammo is limited to some amount (I forget how much)
     pub ammo: u8,
 }
 
@@ -42,19 +40,21 @@ fn spawn_player(mut commands: Commands) {
             ..Default::default()
         })
         .insert(Player {
-            speed: 300.0,
             ammo: STARTING_AMMO,
         })
-        .insert(Collidable);
+        .insert(RigidBodyType::Dynamic)
+        .insert(Movement {
+            velocity: Vec3::new(0.0, 0.0, 0.0),
+        });
 }
 
 // Move the player with WASD or the arrow keys
-fn move_player(
-    mut player_query: Query<(&Player, &mut Transform)>,
-    time: Res<Time>,
+// TODO this needs to happen before movement
+fn player_keyboard_input(
+    mut player_query: Query<&mut Movement, With<Player>>,
     keyboard_input: Res<Input<KeyCode>>,
 ) {
-    let (player, mut transform) = player_query
+    let mut movement = player_query
         .get_single_mut()
         .expect("A single player was not found");
 
@@ -69,10 +69,7 @@ fn move_player(
     let y_axis: i8 = -(down as i8) + up as i8;
     let move_delta: Vec2 = Vec2::new(x_axis as f32, y_axis as f32);
 
-    // This controls the rate at which the player moves
-    let delta_time = time.delta_seconds();
-    transform.translation.x += move_delta.x * player.speed * delta_time;
-    transform.translation.y += move_delta.y * player.speed * delta_time;
+    movement.velocity = Vec3::new(move_delta.x * 300.0, move_delta.y * 300.0, 0.0);
 }
 
 // The player always faces the cursor
@@ -141,57 +138,6 @@ fn shoot(
                 });
 
             player.ammo -= 1;
-        }
-    }
-}
-
-// The player cannot move outside the arena
-fn player_wall_collisions(
-    mut player_query: Query<&mut Transform, With<Player>>,
-    walls_query: Query<(&Transform, &Wall), Without<Player>>,
-) {
-    let mut player_transform = player_query
-        .get_single_mut()
-        .expect("Could not find a single player");
-
-    for (wall_transform, wall) in &walls_query {
-        if let Some(collision) = collide(
-            wall_transform.translation,
-            Vec2::new(wall.width, wall.height),
-            player_transform.translation,
-            Vec2::new(PLAYER_SIZE, PLAYER_SIZE),
-        ) {
-            match collision {
-                Collision::Left => {
-                    player_transform.translation = Vec3::new(
-                        -WINDOWWIDTH / 2.0 + wall.width,
-                        player_transform.translation.y,
-                        0.0,
-                    );
-                }
-                Collision::Right => {
-                    player_transform.translation = Vec3::new(
-                        WINDOWWIDTH / 2.0 - wall.width,
-                        player_transform.translation.y,
-                        0.0,
-                    );
-                }
-                Collision::Top => {
-                    player_transform.translation = Vec3::new(
-                        player_transform.translation.x,
-                        WINDOWHEIGHT / 2.0 - wall.height,
-                        0.0,
-                    );
-                }
-                Collision::Bottom => {
-                    player_transform.translation = Vec3::new(
-                        player_transform.translation.x,
-                        -WINDOWHEIGHT / 2.0 + wall.height,
-                        0.0,
-                    );
-                }
-                Collision::Inside => {}
-            }
         }
     }
 }

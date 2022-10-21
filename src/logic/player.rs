@@ -1,10 +1,9 @@
 use crate::logic::ammo::{Ammo, BULLET_HEIGHT, BULLET_WIDTH};
 use crate::logic::bullet::Bullet;
 use crate::logic::bullet::BULLET_SIZE;
-use crate::logic::walls::Wall;
 use crate::{Movement, RigidBodyType, WINDOWHEIGHT, WINDOWWIDTH};
 use bevy::prelude::*;
-use bevy::sprite::collide_aabb::{collide, Collision};
+use bevy::sprite::collide_aabb::collide;
 
 pub struct PlayerPlugin;
 

@@ -1,8 +1,12 @@
 use bevy::prelude::*;
 use bevy::sprite::collide_aabb::{collide, Collision};
+use bevy::time::FixedTimestep;
 
 const WINDOWHEIGHT: f32 = 1000.0;
 const WINDOWWIDTH: f32 = 1200.0;
+
+// Run 60 frames per second
+const FIXED_TIMESTEP: f64 = 1.0 / 60.0;
 
 mod logic;
 
@@ -22,8 +26,12 @@ fn main() {
         .add_plugin(logic::enemy::EnemyPlugin)
         .add_plugin(logic::score::ScorePlugin)
         .add_plugin(logic::ammo::AmmoPlugin)
-        .add_system(check_collisions)
-        .add_system(move_transforms)
+        .add_system_set(
+            SystemSet::new()
+                .with_run_criteria(FixedTimestep::step(FIXED_TIMESTEP))
+                .with_system(move_transforms)
+                .with_system(check_collisions.after(move_transforms)),
+        )
         .run();
 }
 
@@ -73,7 +81,11 @@ fn check_collisions(mut collisions_query: Query<(&mut Transform, &Sprite, &Rigid
             b_size,
         ) {
             match (a_rigidbody_type, b_rigidbody_type) {
-                // Do nothing here for now, come back later
+                // TODO fix collision bug
+                // player is flickering
+                // TODO maybe just stop velocity instead of pushing back??
+                // Remember not all objects have a movement
+                // throw some print statements down and run it a bunch???
                 (RigidBodyType::Dynamic, RigidBodyType::Dynamic) => {}
                 (RigidBodyType::Dynamic, RigidBodyType::Static) => match collision {
                     Collision::Left => a_transform.translation += Vec3::new(b_size.x, 0.0, 0.0),

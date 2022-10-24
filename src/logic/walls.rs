@@ -1,4 +1,4 @@
-use crate::{RigidBodyType, WINDOWHEIGHT, WINDOWWIDTH};
+use crate::{Collider, WINDOWHEIGHT, WINDOWWIDTH};
 use bevy::prelude::*;
 
 pub struct WallsPlugin;
@@ -31,7 +31,7 @@ fn spawn_walls(mut commands: Commands) {
             transform: Transform::from_xyz(0.0, WINDOWHEIGHT / 2.0, 1.0),
             ..Default::default()
         })
-        .insert(RigidBodyType::Static);
+        .insert(Collider);
 
     // The floor
     let floor_size_x = WINDOWWIDTH;
@@ -48,7 +48,7 @@ fn spawn_walls(mut commands: Commands) {
             transform: Transform::from_xyz(0.0, -WINDOWHEIGHT / 2.0, 1.0),
             ..Default::default()
         })
-        .insert(RigidBodyType::Static);
+        .insert(Collider);
 
     // The Left Wall
     let left_wall_size_x = 40.0;
@@ -64,7 +64,7 @@ fn spawn_walls(mut commands: Commands) {
             transform: Transform::from_xyz(-WINDOWWIDTH / 2.0, 0.0, 1.0),
             ..Default::default()
         })
-        .insert(RigidBodyType::Static);
+        .insert(Collider);
 
     // The Right Wall
     let right_wall_size_x = 40.0;
@@ -80,5 +80,5 @@ fn spawn_walls(mut commands: Commands) {
             transform: Transform::from_xyz(WINDOWWIDTH / 2.0, 0.0, 1.0),
             ..Default::default()
         })
-        .insert(RigidBodyType::Static);
+        .insert(Collider);
 }

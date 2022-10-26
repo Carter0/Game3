@@ -69,21 +69,6 @@ fn check_collisions(
         [(mut a_transform, a_sprite, a_movement), (mut b_transform, b_sprite, b_movement)],
     ) = combinations.fetch_next()
     {
-        // So I sorta want to use this chunk of data for two different things here
-        // 1. I wanna know the position next frame
-        // 2. I wanna know which object is the one that is moving and which one is the one that is staying still
-        // Honestly I think they should just be two separe chunks of data
-        // I want A to be the one that is moving
-        // let a_position = match a_movement {
-        //     Some(movement) => movement.velocity + a_transform.translation,
-        //     None => a_transform.translation,
-        // };
-
-        // let b_position = match b_movement {
-        //     Some(movement) => movement.velocity + b_transform.translation,
-        //     None => b_transform.translation,
-        // };
-
         let a_size: Vec2 = a_sprite
             .custom_size
             .expect("All sprites need to have custom sizes.");
@@ -110,41 +95,46 @@ fn check_collisions(
                 // `A` collided with `B`'s left side. `Top` means that `A` collided with `B`'s top side.
                 // If the collision occurs on multiple sides, the side with the deepest penetration is returned.
                 // If all sides are involved, `Inside` is returned.
-                println!("A next position is {}", position_next_frame.x);
-                println!("Current b position is {}", b_transform.translation.x);
-
                 if let Some(collision) =
                     collide(position_next_frame, a_size, b_transform.translation, b_size)
                 {
-                    // TODO recalculate the position to move based on where the collision is going to happen
-                    // So basically
-                    // If the desired movement is going to cause a collision next frame
-                    // Then recalculate the movement for the next frame to be the distance right before the collision
-
-                    println!("In V1 collision");
-
                     match collision {
                         Collision::Left => {
-                            println!("collision occured on the left side of the right wall");
-                            let b_x_pos: f32 = b_transform.translation.x - b_size.x / 2.0;
-                            let a_cur_x_pos: f32 = a_transform.translation.x + a_size.x / 2.0;
-
-                            println!("B position is {b_x_pos}");
-                            println!("A position is {a_cur_x_pos}");
+                            let b_x_pos = b_transform.translation.x - b_size.x / 2.0;
+                            let a_cur_x_pos = a_transform.translation.x + a_size.x / 2.0;
+                            a_transform.translation.x =
+                                (b_x_pos - a_cur_x_pos) + a_transform.translation.x;
+                        }
+                        Collision::Right => {
+                            let b_x_pos = b_transform.translation.x + b_size.x / 2.0;
+                            let a_cur_x_pos = a_transform.translation.x - a_size.x / 2.0;
 
                             a_transform.translation.x =
                                 (b_x_pos - a_cur_x_pos) + a_transform.translation.x;
                         }
-                        Collision::Right => {}
-                        Collision::Top => {}
-                        Collision::Bottom => {}
+                        Collision::Top => {
+                            let b_y_pos = b_transform.translation.y + b_size.y / 2.0;
+                            let a_cur_y_pos = a_transform.translation.y - a_size.y / 2.0;
+
+                            a_transform.translation.y =
+                                (b_y_pos - a_cur_y_pos) + a_transform.translation.y;
+                        }
+                        Collision::Bottom => {
+                            let b_y_pos = b_transform.translation.y - b_size.y / 2.0;
+                            let a_cur_y_pos = a_transform.translation.y + a_size.y / 2.0;
+
+                            a_transform.translation.y =
+                                (b_y_pos - a_cur_y_pos) + a_transform.translation.y;
+                        }
                         Collision::Inside => {}
                     }
                 }
             }
             (None, Some(movement)) => {
-                let position_next_frame = movement.velocity + b_transform.translation;
+                let position_next_frame =
+                    movement.velocity * time.delta_seconds() + b_transform.translation;
 
+                println!("In V2");
                 // The return value is the side of `B` that `A` has collided with. `Left` means that
                 // `A` collided with `B`'s left side. `Top` means that `A` collided with `B`'s top side.
                 // If the collision occurs on multiple sides, the side with the deepest penetration is returned.
@@ -152,23 +142,19 @@ fn check_collisions(
                 if let Some(collision) =
                     collide(position_next_frame, b_size, a_transform.translation, a_size)
                 {
-                    // TODO recalculate the position to move based on where the collision is going to happen
-                    // So basically
-                    // If the desired movement is going to cause a collision next frame
-                    // Then recalculate the movement for the next frame to be the distance right before the collision
-
                     match collision {
                         Collision::Left => {
-                            println!("In V2");
-                            // println!("collision occured on the left side of the right wall 222");
-                            // // THis is so confusing lol
-                            // let b_x_pos: f32 = a_transform.translation.x - a_size.x / 2.0;
-                            // let a_cur_x_pos: f32 = b_transform.translation.x + b_size.x / 2.0;
+                            // TODO somehow the collision is all backward ???
 
-                            // println!("B2 position is {b_x_pos}");
-                            // println!("A2 position is {a_cur_x_pos}");
+                            // a => entity a from the combinations query
+                            // b => entity b from the combinations query
+                            // one => collision entity one from the collisions method
+                            // two => collision entity two from the collisions method
 
-                            // b_transform.translation.x = b_x_pos - a_cur_x_pos;
+                            let one_x_pos = a_transform.translation.x - a_size.x / 2.0;
+                            let two_cur_x_pos = b_transform.translation.x + b_size.x / 2.0;
+                            b_transform.translation.x =
+                                (one_x_pos - two_cur_x_pos) + b_transform.translation.x;
                         }
                         Collision::Right => {}
                         Collision::Top => {}

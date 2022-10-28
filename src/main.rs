@@ -5,8 +5,8 @@ use bevy::time::FixedTimestep;
 const WINDOWHEIGHT: f32 = 1000.0;
 const WINDOWWIDTH: f32 = 1200.0;
 
-// Run 60 frames per second
-const FIXED_TIMESTEP: f64 = 1.0 / 60.0;
+// Run 80 frames per second
+const FIXED_TIMESTEP: f64 = 1.0 / 80.0;
 
 mod logic;
 
@@ -40,26 +40,24 @@ fn spawn_camera(mut commands: Commands) {
     commands.spawn().insert_bundle(Camera2dBundle::default());
 }
 
-// TODO make something like this...
-// enum CollisionType {
-//     Reflect
-//     Stop
-//     Destroy
-// }
-
+// TODO I think you should make an event for this
+// Something kind of like an on collision event
 #[derive(Component)]
-struct Collider;
+enum ColliderType {
+    // Reflect the moving object
+    // Reflect,
+    // Stop the moving object
+    Stop,
+    // Destroy both this object and the colliding object
+    // Destroy,
+    // Does nothing on collision, used for static objects
+    Nothing,
+}
 
-// #[derive(Component)]
-// enum RigidBodyType {
-//     // Static rigid bodies do not move on collision, they are immobile
-//     Static,
-//     // Dynamic objects move and react to events in the game
-//     Dynamic,
-// }
-
+// Checks whether objects with collision components have collided.
+// TODO this can't be a with anymore, need to bring it into the query
 fn check_collisions(
-    mut collisions_query: Query<(&mut Transform, &Sprite, Option<&Movement>), With<Collider>>,
+    mut collisions_query: Query<(&mut Transform, &Sprite, Option<&Movement>), With<ColliderType>>,
     time: Res<Time>,
 ) {
     // The combination is an arrangement of entities's components without repeats
@@ -81,92 +79,88 @@ fn check_collisions(
         match (a_movement, b_movement) {
             (Some(_a_movement), Some(_b_movement)) => {}
             (Some(movement), None) => {
-                let position_next_frame =
-                    movement.velocity * time.delta_seconds() + a_transform.translation;
-
-                println!("In V1");
-
-                // For future me: The A and B thing is confusing because the official docs use the same
-                // terminology for the collision_aabb method that I use in this system.
-                // The only reason I am doing this is to always know that I am colliding with
-                // the non-moving objects sides. So I am colliding with the non moving objects left side for example.
-
-                // The return value is the side of `B` that `A` has collided with. `Left` means that
-                // `A` collided with `B`'s left side. `Top` means that `A` collided with `B`'s top side.
-                // If the collision occurs on multiple sides, the side with the deepest penetration is returned.
-                // If all sides are involved, `Inside` is returned.
-                if let Some(collision) =
-                    collide(position_next_frame, a_size, b_transform.translation, b_size)
-                {
-                    match collision {
-                        Collision::Left => {
-                            let b_x_pos = b_transform.translation.x - b_size.x / 2.0;
-                            let a_cur_x_pos = a_transform.translation.x + a_size.x / 2.0;
-                            a_transform.translation.x =
-                                (b_x_pos - a_cur_x_pos) + a_transform.translation.x;
-                        }
-                        Collision::Right => {
-                            let b_x_pos = b_transform.translation.x + b_size.x / 2.0;
-                            let a_cur_x_pos = a_transform.translation.x - a_size.x / 2.0;
-
-                            a_transform.translation.x =
-                                (b_x_pos - a_cur_x_pos) + a_transform.translation.x;
-                        }
-                        Collision::Top => {
-                            let b_y_pos = b_transform.translation.y + b_size.y / 2.0;
-                            let a_cur_y_pos = a_transform.translation.y - a_size.y / 2.0;
-
-                            a_transform.translation.y =
-                                (b_y_pos - a_cur_y_pos) + a_transform.translation.y;
-                        }
-                        Collision::Bottom => {
-                            let b_y_pos = b_transform.translation.y - b_size.y / 2.0;
-                            let a_cur_y_pos = a_transform.translation.y + a_size.y / 2.0;
-
-                            a_transform.translation.y =
-                                (b_y_pos - a_cur_y_pos) + a_transform.translation.y;
-                        }
-                        Collision::Inside => {}
-                    }
-                }
+                reset_colliding_object(
+                    &movement.velocity,
+                    &time,
+                    &mut a_transform,
+                    &a_size,
+                    &b_transform,
+                    &b_size,
+                );
             }
             (None, Some(movement)) => {
-                let position_next_frame =
-                    movement.velocity * time.delta_seconds() + b_transform.translation;
-
-                println!("In V2");
-                // The return value is the side of `B` that `A` has collided with. `Left` means that
-                // `A` collided with `B`'s left side. `Top` means that `A` collided with `B`'s top side.
-                // If the collision occurs on multiple sides, the side with the deepest penetration is returned.
-                // If all sides are involved, `Inside` is returned.
-                if let Some(collision) =
-                    collide(position_next_frame, b_size, a_transform.translation, a_size)
-                {
-                    match collision {
-                        Collision::Left => {
-                            // TODO somehow the collision is all backward ???
-
-                            // a => entity a from the combinations query
-                            // b => entity b from the combinations query
-                            // one => collision entity one from the collisions method
-                            // two => collision entity two from the collisions method
-
-                            let one_x_pos = a_transform.translation.x - a_size.x / 2.0;
-                            let two_cur_x_pos = b_transform.translation.x + b_size.x / 2.0;
-                            b_transform.translation.x =
-                                (one_x_pos - two_cur_x_pos) + b_transform.translation.x;
-                        }
-                        Collision::Right => {}
-                        Collision::Top => {}
-                        Collision::Bottom => {}
-                        Collision::Inside => {}
-                    }
-                }
+                reset_colliding_object(
+                    &movement.velocity,
+                    &time,
+                    &mut b_transform,
+                    &b_size,
+                    &a_transform,
+                    &a_size,
+                );
             }
             (None, None) => {}
         }
+    }
+}
 
-        // There is going to be a collision next frame
+// Resets the position of the moving transform to be right before the collision next frame
+// transform one is going to be the transform of the moving object
+fn reset_colliding_object(
+    velocity: &Vec3,
+    time: &Time,
+    moving_transform: &mut Transform,
+    moving_transform_size: &Vec2,
+    static_transform: &Transform,
+    static_transform_size: &Vec2,
+) {
+    let position_next_frame = *velocity * time.delta_seconds() + moving_transform.translation;
+
+    // The return value is the side of `B` that `A` has collided with. `Left` means that
+    // `A` collided with `B`'s left side. `Top` means that `A` collided with `B`'s top side.
+    // If the collision occurs on multiple sides, the side with the deepest penetration is returned.
+    // If all sides are involved, `Inside` is returned.
+
+    if let Some(collision) = collide(
+        position_next_frame,
+        *moving_transform_size,
+        static_transform.translation,
+        *static_transform_size,
+    ) {
+        match collision {
+            Collision::Left => {
+                // a => entity a from the combinations query
+                // b => entity b from the combinations query
+                // one => collision entity one from the collisions method
+                // two => collision entity two from the collisions method
+
+                let one_x_pos = static_transform.translation.x - static_transform_size.x / 2.0;
+                let two_cur_x_pos = moving_transform.translation.x + moving_transform_size.x / 2.0;
+                moving_transform.translation.x =
+                    (one_x_pos - two_cur_x_pos) + moving_transform.translation.x;
+            }
+            Collision::Right => {
+                let one_x_pos = static_transform.translation.x + static_transform_size.x / 2.0;
+                let two_cur_x_pos = moving_transform.translation.x - moving_transform_size.x / 2.0;
+
+                moving_transform.translation.x =
+                    (one_x_pos - two_cur_x_pos) + moving_transform.translation.x;
+            }
+            Collision::Top => {
+                let one_y_pos = static_transform.translation.y + static_transform_size.y / 2.0;
+                let two_cur_y_pos = moving_transform.translation.y - moving_transform_size.y / 2.0;
+
+                moving_transform.translation.y =
+                    (one_y_pos - two_cur_y_pos) + moving_transform.translation.y;
+            }
+            Collision::Bottom => {
+                let one_y_pos = static_transform.translation.y - static_transform_size.y / 2.0;
+                let two_cur_y_pos = moving_transform.translation.y + moving_transform_size.y / 2.0;
+
+                moving_transform.translation.y =
+                    (one_y_pos - two_cur_y_pos) + moving_transform.translation.y;
+            }
+            Collision::Inside => {}
+        }
     }
 }
 

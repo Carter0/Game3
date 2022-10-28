@@ -1,7 +1,7 @@
 use crate::logic::ammo::{Ammo, BULLET_HEIGHT, BULLET_WIDTH};
 use crate::logic::bullet::Bullet;
 use crate::logic::bullet::BULLET_SIZE;
-use crate::{Collider, Movement, WINDOWHEIGHT, WINDOWWIDTH};
+use crate::{ColliderType, Movement, WINDOWHEIGHT, WINDOWWIDTH};
 use bevy::prelude::*;
 use bevy::sprite::collide_aabb::collide;
 
@@ -44,7 +44,7 @@ fn spawn_player(mut commands: Commands) {
         .insert(Movement {
             velocity: Vec3::new(0.0, 0.0, 0.0),
         })
-        .insert(Collider);
+        .insert(ColliderType::Stop);
 }
 
 // Move the player with WASD or the arrow keys

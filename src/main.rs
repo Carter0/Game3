@@ -55,16 +55,15 @@ enum ColliderType {
 }
 
 // Checks whether objects with collision components have collided.
-// TODO this can't be a with anymore, need to bring it into the query
 fn check_collisions(
-    mut collisions_query: Query<(&mut Transform, &Sprite, Option<&Movement>), With<ColliderType>>,
+    mut collisions_query: Query<(&mut Transform, &Sprite, Option<&Movement>, &ColliderType)>,
     time: Res<Time>,
 ) {
     // The combination is an arrangement of entities's components without repeats
     let mut combinations = collisions_query.iter_combinations_mut();
 
     while let Some(
-        [(mut a_transform, a_sprite, a_movement), (mut b_transform, b_sprite, b_movement)],
+        [(mut a_transform, a_sprite, a_movement, a_collider_type), (mut b_transform, b_sprite, b_movement, b_collider_type)],
     ) = combinations.fetch_next()
     {
         let a_size: Vec2 = a_sprite
@@ -79,21 +78,23 @@ fn check_collisions(
         match (a_movement, b_movement) {
             (Some(_a_movement), Some(_b_movement)) => {}
             (Some(movement), None) => {
-                reset_colliding_object(
+                determine_collision(
                     &movement.velocity,
                     &time,
                     &mut a_transform,
                     &a_size,
+                    &a_collider_type,
                     &b_transform,
                     &b_size,
                 );
             }
             (None, Some(movement)) => {
-                reset_colliding_object(
+                determine_collision(
                     &movement.velocity,
                     &time,
                     &mut b_transform,
                     &b_size,
+                    &b_collider_type,
                     &a_transform,
                     &a_size,
                 );
@@ -103,13 +104,14 @@ fn check_collisions(
     }
 }
 
-// Resets the position of the moving transform to be right before the collision next frame
-// transform one is going to be the transform of the moving object
-fn reset_colliding_object(
+// Determines whether there a collision will occur in the next frame and then
+// delegates to another function that determines what kind of collision response there will be.
+fn determine_collision(
     velocity: &Vec3,
     time: &Time,
     moving_transform: &mut Transform,
     moving_transform_size: &Vec2,
+    moving_collider_type: &ColliderType,
     static_transform: &Transform,
     static_transform_size: &Vec2,
 ) {
@@ -126,41 +128,64 @@ fn reset_colliding_object(
         static_transform.translation,
         *static_transform_size,
     ) {
-        match collision {
-            Collision::Left => {
-                // a => entity a from the combinations query
-                // b => entity b from the combinations query
-                // one => collision entity one from the collisions method
-                // two => collision entity two from the collisions method
-
-                let one_x_pos = static_transform.translation.x - static_transform_size.x / 2.0;
-                let two_cur_x_pos = moving_transform.translation.x + moving_transform_size.x / 2.0;
-                moving_transform.translation.x =
-                    (one_x_pos - two_cur_x_pos) + moving_transform.translation.x;
+        match moving_collider_type {
+            ColliderType::Nothing => {}
+            ColliderType::Stop => {
+                stop_moving_entity(
+                    &collision,
+                    moving_transform,
+                    moving_transform_size,
+                    static_transform,
+                    static_transform_size,
+                );
             }
-            Collision::Right => {
-                let one_x_pos = static_transform.translation.x + static_transform_size.x / 2.0;
-                let two_cur_x_pos = moving_transform.translation.x - moving_transform_size.x / 2.0;
-
-                moving_transform.translation.x =
-                    (one_x_pos - two_cur_x_pos) + moving_transform.translation.x;
-            }
-            Collision::Top => {
-                let one_y_pos = static_transform.translation.y + static_transform_size.y / 2.0;
-                let two_cur_y_pos = moving_transform.translation.y - moving_transform_size.y / 2.0;
-
-                moving_transform.translation.y =
-                    (one_y_pos - two_cur_y_pos) + moving_transform.translation.y;
-            }
-            Collision::Bottom => {
-                let one_y_pos = static_transform.translation.y - static_transform_size.y / 2.0;
-                let two_cur_y_pos = moving_transform.translation.y + moving_transform_size.y / 2.0;
-
-                moving_transform.translation.y =
-                    (one_y_pos - two_cur_y_pos) + moving_transform.translation.y;
-            }
-            Collision::Inside => {}
         }
+    }
+}
+
+// Resets the position of the moving transform to be right before the collision next frame
+// transform one is going to be the transform of the moving object
+fn stop_moving_entity(
+    collision: &Collision,
+    moving_transform: &mut Transform,
+    moving_transform_size: &Vec2,
+    static_transform: &Transform,
+    static_transform_size: &Vec2,
+) {
+    match collision {
+        Collision::Left => {
+            // a => entity a from the combinations query
+            // b => entity b from the combinations query
+            // one => collision entity one from the collisions method
+            // two => collision entity two from the collisions method
+
+            let one_x_pos = static_transform.translation.x - static_transform_size.x / 2.0;
+            let two_cur_x_pos = moving_transform.translation.x + moving_transform_size.x / 2.0;
+            moving_transform.translation.x =
+                (one_x_pos - two_cur_x_pos) + moving_transform.translation.x;
+        }
+        Collision::Right => {
+            let one_x_pos = static_transform.translation.x + static_transform_size.x / 2.0;
+            let two_cur_x_pos = moving_transform.translation.x - moving_transform_size.x / 2.0;
+
+            moving_transform.translation.x =
+                (one_x_pos - two_cur_x_pos) + moving_transform.translation.x;
+        }
+        Collision::Top => {
+            let one_y_pos = static_transform.translation.y + static_transform_size.y / 2.0;
+            let two_cur_y_pos = moving_transform.translation.y - moving_transform_size.y / 2.0;
+
+            moving_transform.translation.y =
+                (one_y_pos - two_cur_y_pos) + moving_transform.translation.y;
+        }
+        Collision::Bottom => {
+            let one_y_pos = static_transform.translation.y - static_transform_size.y / 2.0;
+            let two_cur_y_pos = moving_transform.translation.y + moving_transform_size.y / 2.0;
+
+            moving_transform.translation.y =
+                (one_y_pos - two_cur_y_pos) + moving_transform.translation.y;
+        }
+        Collision::Inside => {}
     }
 }
 

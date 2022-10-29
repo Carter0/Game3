@@ -132,9 +132,12 @@ fn shoot(
                     ),
                     ..Default::default()
                 })
-                .insert(Bullet {
-                    direction: player_transform.local_y().truncate(),
-                });
+                .insert(Bullet)
+                .insert(Movement {
+                    // 400.0 is the speed of the bullets
+                    velocity: player_transform.local_y() * 400.0,
+                })
+                .insert(ColliderType::Reflect);
 
             player.ammo -= 1;
         }

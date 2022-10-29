@@ -40,12 +40,17 @@ fn spawn_camera(mut commands: Commands) {
     commands.spawn().insert_bundle(Camera2dBundle::default());
 }
 
-// TODO I think you should make an event for this
-// Something kind of like an on collision event
+// NOTE
+// The invariant here is that each entity can only have one kind of collision
+// Where you might run into trouble in the future is when you want to have an
+// entity collide with one thing in one way, but collide with another thing in another way.
+// Which is actually going to be a problem haha
+// But ill get there in the future
+// One problem at a time
 #[derive(Component)]
 enum ColliderType {
     // Reflect the moving object
-    // Reflect,
+    Reflect,
     // Stop the moving object
     Stop,
     // Destroy both this object and the colliding object
@@ -56,7 +61,12 @@ enum ColliderType {
 
 // Checks whether objects with collision components have collided.
 fn check_collisions(
-    mut collisions_query: Query<(&mut Transform, &Sprite, Option<&Movement>, &ColliderType)>,
+    mut collisions_query: Query<(
+        &mut Transform,
+        &Sprite,
+        Option<&mut Movement>,
+        &ColliderType,
+    )>,
     time: Res<Time>,
 ) {
     // The combination is an arrangement of entities's components without repeats
@@ -75,11 +85,12 @@ fn check_collisions(
             .expect("All sprites need to have custom sizes.");
 
         // Invariant: I am only checking collisions between objects thats move and objects that do not
+        // For the destroy variant, you will need to get rid of this in the future
         match (a_movement, b_movement) {
             (Some(_a_movement), Some(_b_movement)) => {}
-            (Some(movement), None) => {
+            (Some(mut movement), None) => {
                 determine_collision(
-                    &movement.velocity,
+                    &mut movement.velocity,
                     &time,
                     &mut a_transform,
                     &a_size,
@@ -88,9 +99,9 @@ fn check_collisions(
                     &b_size,
                 );
             }
-            (None, Some(movement)) => {
+            (None, Some(mut movement)) => {
                 determine_collision(
-                    &movement.velocity,
+                    &mut movement.velocity,
                     &time,
                     &mut b_transform,
                     &b_size,
@@ -107,7 +118,7 @@ fn check_collisions(
 // Determines whether there a collision will occur in the next frame and then
 // delegates to another function that determines what kind of collision response there will be.
 fn determine_collision(
-    velocity: &Vec3,
+    mut velocity: &mut Vec3,
     time: &Time,
     moving_transform: &mut Transform,
     moving_transform_size: &Vec2,
@@ -139,7 +150,21 @@ fn determine_collision(
                     static_transform_size,
                 );
             }
+            ColliderType::Reflect => {
+                reflect_entity(&collision, &mut velocity);
+            }
         }
+    }
+}
+
+// Reflects the velocity of the entity
+fn reflect_entity(collision: &Collision, velocity: &mut Vec3) {
+    match collision {
+        Collision::Left => *velocity = Vec3::new(velocity.x * -1.0, velocity.y, 0.0),
+        Collision::Right => *velocity = Vec3::new(velocity.x * -1.0, velocity.y, 0.0),
+        Collision::Top => *velocity = Vec3::new(velocity.x, velocity.y * -1.0, 0.0),
+        Collision::Bottom => *velocity = Vec3::new(velocity.x, velocity.y * -1.0, 0.0),
+        Collision::Inside => {}
     }
 }
 

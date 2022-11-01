@@ -54,7 +54,10 @@ enum ColliderType {
     // Stop the moving object
     Stop,
     // Destroy both this object and the colliding object
-    // Destroy,
+    // The entity refers to the entity of the other component
+    // you need to touch in order for desturuction to happen
+    // NOTE this is blocked by relations
+    // Destroy(Entity),
     // Does nothing on collision, used for static objects
     Nothing,
 }
@@ -84,9 +87,8 @@ fn check_collisions(
             .custom_size
             .expect("All sprites need to have custom sizes.");
 
-        // Invariant: I am only checking collisions between objects thats move and objects that do not
-        // For the destroy variant, you will need to get rid of this in the future
         match (a_movement, b_movement) {
+            // Invariant: Only Destroy happens when two moving objects collide (so far)
             (Some(_a_movement), Some(_b_movement)) => {}
             (Some(mut movement), None) => {
                 determine_collision(

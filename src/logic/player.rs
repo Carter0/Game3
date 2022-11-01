@@ -48,7 +48,6 @@ fn spawn_player(mut commands: Commands) {
 }
 
 // Move the player with WASD or the arrow keys
-// TODO this needs to happen before movement
 fn player_keyboard_input(
     mut player_query: Query<&mut Movement, With<Player>>,
     keyboard_input: Res<Input<KeyCode>>,

@@ -40,6 +40,11 @@ fn spawn_camera(mut commands: Commands) {
     commands.spawn().insert_bundle(Camera2dBundle::default());
 }
 
+// TODO everything below should go in its own module, or atleas the collision stuff should
+// TODO make sure all this code makes sense to you in the future
+// TODO make a shooting component
+// TODO make a spawning component
+
 // NOTE
 // The invariant here is that each entity can only have one kind of collision
 // Where you might run into trouble in the future is when you want to have an
@@ -47,6 +52,7 @@ fn spawn_camera(mut commands: Commands) {
 // Which is actually going to be a problem haha
 // But ill get there in the future
 // One problem at a time
+// This problem might also be solved by relations lol
 #[derive(Component)]
 enum ColliderType {
     // Reflect the moving object

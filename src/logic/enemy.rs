@@ -62,6 +62,10 @@ fn get_spawn_side(integer: i8) -> SpawnSide {
 }
 
 // Enemies spawn randomly on the sides of the arena every 3 seconds.
+// TODO this needs to be reworked
+// I want enemies to spawn everywhere on the map
+// But there will be a blinking feature that occurs
+// for a few seconds before the enemy is activated
 fn spawn_enemies(mut commands: Commands) {
     let mut rng = rand::thread_rng();
     let spawn_side = get_spawn_side(rng.gen_range(1..=4));

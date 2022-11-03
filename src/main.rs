@@ -44,6 +44,7 @@ fn spawn_camera(mut commands: Commands) {
 // TODO make sure all this code makes sense to you in the future
 // TODO make a shooting component
 // TODO make a spawning component
+// TODO make a follow player component
 
 // NOTE
 // The invariant here is that each entity can only have one kind of collision

@@ -1,3 +1,4 @@
+use crate::logic::physics::ColliderType;
 use crate::logic::player::{Player, PLAYER_SIZE};
 use crate::{WINDOWHEIGHT, WINDOWWIDTH};
 use bevy::prelude::*;
@@ -14,11 +15,14 @@ pub const ENEMY_SIZE: f32 = 40.0;
 impl Plugin for EnemyPlugin {
     fn build(&self, app: &mut App) {
         app.add_system_set(
-            SystemSet::new().with_run_criteria(FixedTimestep::step(ENEMY_SPAWN_TIMESTEP)), // .with_system(spawn_enemies),
+            SystemSet::new()
+                .with_run_criteria(FixedTimestep::step(ENEMY_SPAWN_TIMESTEP))
+                .with_system(generate_spawn_coordinates),
         )
         .add_system(move_enemies)
         .add_event::<EnemyDeathEvent>()
-        .add_system(enemy_player_collisions);
+        .add_system(enemy_player_collisions)
+        .add_system(spawn_enemies);
     }
 }
 
@@ -39,14 +43,14 @@ fn generate_spawn_coordinates(mut commands: Commands) {
     let mut rng = rand::thread_rng();
 
     let (x, y) = (
-        get_edge_of_screen(rng.gen_range(1.0..=WINDOWWIDTH)),
-        get_edge_of_screen(rng.gen_range(1.0..=WINDOWHEIGHT)),
+        WINDOWWIDTH / 2.0 - rng.gen_range(40.0..=WINDOWWIDTH - 40.0),
+        WINDOWHEIGHT / 2.0 - rng.gen_range(40.0..=WINDOWHEIGHT - 40.0),
     );
 
     commands
         .spawn()
         .insert(EnemySpawnLocation {
-            spawn_timer: Timer::new(Duration::from_secs(5), false),
+            spawn_timer: Timer::new(Duration::from_secs(3), false),
         })
         .insert_bundle(SpriteBundle {
             sprite: Sprite {
@@ -56,82 +60,41 @@ fn generate_spawn_coordinates(mut commands: Commands) {
             },
             transform: Transform::from_translation(Vec2::new(x, y).extend(0.0)),
             ..Default::default()
-        });
+        })
+        .insert(ColliderType::Stop);
 }
 
-// The edge of the screen is half of the total size
-fn get_edge_of_screen(window_size: f32) -> f32 {
-    window_size / 2.0
+// Spawn enemies once the enemy spawn timer is up
+fn spawn_enemies(
+    mut enemy_spawn_query: Query<(Entity, &Transform, &mut EnemySpawnLocation)>,
+    mut commands: Commands,
+    time: Res<Time>,
+) {
+    for (entity, transform, mut enemy_spawns) in &mut enemy_spawn_query {
+        enemy_spawns.spawn_timer.tick(time.delta());
+
+        if enemy_spawns.spawn_timer.finished() {
+            commands.entity(entity).despawn();
+
+            commands
+                .spawn()
+                .insert_bundle(SpriteBundle {
+                    sprite: Sprite {
+                        color: Color::MAROON,
+                        custom_size: Some(Vec2::new(ENEMY_SIZE, ENEMY_SIZE)),
+                        ..Default::default()
+                    },
+                    transform: *transform,
+                    ..Default::default()
+                })
+                .insert(Enemy { speed: 200.0 });
+        }
+    }
 }
 
 pub struct EnemyDeathEvent {
     pub death_position: Vec3,
 }
-
-// enum SpawnSide {
-//     Left,
-//     Right,
-//     Up,
-//     Down,
-// }
-
-// impl fmt::Display for SpawnSide {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         match self {
-//             SpawnSide::Left => write!(f, "Left"),
-//             SpawnSide::Right => write!(f, "Right"),
-//             SpawnSide::Up => write!(f, "Up"),
-//             SpawnSide::Down => write!(f, "Down"),
-//         }
-//     }
-// }
-
-// fn get_spawn_side(integer: i8) -> SpawnSide {
-//     match integer {
-//         1 => SpawnSide::Left,
-//         2 => SpawnSide::Right,
-//         3 => SpawnSide::Up,
-//         _ => SpawnSide::Down,
-//     }
-// }
-
-// Enemies spawn randomly on the sides of the arena every 3 seconds.
-// fn spawn_enemies(mut commands: Commands) {
-//     let mut rng = rand::thread_rng();
-//     let spawn_side = get_spawn_side(rng.gen_range(1..=4));
-
-//     let spawn_position: Vec2 = match spawn_side {
-//         SpawnSide::Left => Vec2::new(
-//             -WINDOWWIDTH / 2.0 + 40.0,
-//             rng.gen_range(-WINDOWHEIGHT / 2.0..=WINDOWHEIGHT / 2.0),
-//         ),
-//         SpawnSide::Right => Vec2::new(
-//             WINDOWWIDTH / 2.0 - 40.0,
-//             rng.gen_range(-WINDOWHEIGHT / 2.0..=WINDOWHEIGHT / 2.0),
-//         ),
-//         SpawnSide::Up => Vec2::new(
-//             rng.gen_range(-WINDOWWIDTH / 2.0..=WINDOWWIDTH / 2.0),
-//             WINDOWHEIGHT / 2.0 - 40.0,
-//         ),
-//         SpawnSide::Down => Vec2::new(
-//             rng.gen_range(-WINDOWWIDTH / 2.0..=WINDOWWIDTH / 2.0),
-//             -WINDOWHEIGHT / 2.0 + 40.0,
-//         ),
-//     };
-
-//     commands
-//         .spawn()
-//         .insert_bundle(SpriteBundle {
-//             sprite: Sprite {
-//                 color: Color::MAROON,
-//                 custom_size: Some(Vec2::new(ENEMY_SIZE, ENEMY_SIZE)),
-//                 ..Default::default()
-//             },
-//             transform: Transform::from_translation(spawn_position.extend(0.0)),
-//             ..Default::default()
-//         })
-//         .insert(Enemy { speed: 200.0 });
-// }
 
 // Enemies follow the player.
 fn move_enemies(

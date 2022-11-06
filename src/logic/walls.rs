@@ -1,4 +1,5 @@
-use crate::{ColliderType, WINDOWHEIGHT, WINDOWWIDTH};
+use crate::logic::physics::ColliderType;
+use crate::{WINDOWHEIGHT, WINDOWWIDTH};
 use bevy::prelude::*;
 
 pub struct WallsPlugin;

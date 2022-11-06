@@ -1,7 +1,8 @@
 use crate::logic::ammo::{Ammo, BULLET_HEIGHT, BULLET_WIDTH};
 use crate::logic::bullet::Bullet;
 use crate::logic::bullet::BULLET_SIZE;
-use crate::{ColliderType, Movement, WINDOWHEIGHT, WINDOWWIDTH};
+use crate::logic::physics::{ColliderType, Movement};
+use crate::{WINDOWHEIGHT, WINDOWWIDTH};
 use bevy::prelude::*;
 use bevy::sprite::collide_aabb::collide;
 

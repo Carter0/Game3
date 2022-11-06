@@ -5,13 +5,13 @@ use bevy::time::FixedTimestep;
 
 pub struct PhysicsPlugin;
 
-// Run 80 frames per second
-const FIXED_TIMESTEP: f64 = 1.0 / 80.0;
+const FIXED_TIMESTEP: f64 = 1.0 / 120.0;
 
 impl Plugin for PhysicsPlugin {
     fn build(&self, app: &mut App) {
         app.add_system_set(
             SystemSet::new()
+                // I want collisions to be checked at double the frame rate
                 .with_run_criteria(FixedTimestep::step(FIXED_TIMESTEP))
                 .with_system(move_transforms)
                 // Will override moving the transforms if a collision occurs
@@ -52,7 +52,6 @@ fn check_collisions(
         Option<&mut Movement>,
         &ColliderType,
     )>,
-    time: Res<Time>,
 ) {
     // The combination is an arrangement of entities's components without repeats
     let mut combinations = collisions_query.iter_combinations_mut();
@@ -76,7 +75,6 @@ fn check_collisions(
             (Some(mut movement), None) => {
                 determine_collision(
                     &mut movement.velocity,
-                    &time,
                     &mut a_transform,
                     &a_size,
                     &a_collider_type,
@@ -87,7 +85,6 @@ fn check_collisions(
             (None, Some(mut movement)) => {
                 determine_collision(
                     &mut movement.velocity,
-                    &time,
                     &mut b_transform,
                     &b_size,
                     &b_collider_type,
@@ -104,14 +101,13 @@ fn check_collisions(
 // delegates to another function that determines what kind of collision response there will be.
 fn determine_collision(
     mut velocity: &mut Vec3,
-    time: &Time,
     moving_transform: &mut Transform,
     moving_transform_size: &Vec2,
     moving_collider_type: &ColliderType,
     static_transform: &Transform,
     static_transform_size: &Vec2,
 ) {
-    let position_next_frame = *velocity * time.delta_seconds() + moving_transform.translation;
+    let position_next_frame = *velocity * FIXED_TIMESTEP as f32 + moving_transform.translation;
 
     // The return value is the side of `B` that `A` has collided with. `Left` means that
     // `A` collided with `B`'s left side. `Top` means that `A` collided with `B`'s top side.
@@ -232,14 +228,15 @@ fn shoot(
     }
 }
 
+// This is not physics actually
 #[derive(Component)]
 pub struct Movement {
     pub velocity: Vec3,
 }
 
 // Does fairly basic linear movement
-fn move_transforms(mut query: Query<(&mut Transform, &Movement)>, time: Res<Time>) {
+fn move_transforms(mut query: Query<(&mut Transform, &Movement)>) {
     for (mut transform, movement) in &mut query {
-        transform.translation += movement.velocity * time.delta_seconds();
+        transform.translation += movement.velocity * FIXED_TIMESTEP as f32;
     }
 }

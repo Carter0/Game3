@@ -29,6 +29,5 @@ fn spawn_camera(mut commands: Commands) {
     commands.spawn().insert_bundle(Camera2dBundle::default());
 }
 
-// TODO read up on fixedtimestep (or watch a video or something).
-// TODO make a spawning component
-// TODO make a follow player component
+// TODO make a follow player component (needed to do the timestep stuff correctly)
+// TODO create a shooting enemy

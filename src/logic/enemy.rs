@@ -26,11 +26,15 @@ impl Plugin for EnemyPlugin {
     }
 }
 
+// TODO speed might be able to be put into movement component somehow
 #[derive(Component)]
 pub struct Enemy {
     // Speed is always positive
     speed: f32,
 }
+
+#[derive(Component)]
+struct ShootingEnemy;
 
 // Shows the location of where an enemy is going to spawn in
 #[derive(Component)]

@@ -67,7 +67,7 @@ fn player_keyboard_input(
     let y_axis: i8 = -(down as i8) + up as i8;
     let move_delta: Vec2 = Vec2::new(x_axis as f32, y_axis as f32);
 
-    movement.velocity = Vec3::new(move_delta.x * 300.0, move_delta.y * 300.0, 0.0);
+    movement.velocity = Vec3::new(move_delta.x * 400.0, move_delta.y * 400.0, 0.0);
 }
 
 // The player always faces the cursor

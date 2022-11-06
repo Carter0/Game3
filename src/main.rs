@@ -30,6 +30,5 @@ fn spawn_camera(mut commands: Commands) {
 }
 
 // TODO read up on fixedtimestep (or watch a video or something).
-// TODO make a shooting component
 // TODO make a spawning component
 // TODO make a follow player component

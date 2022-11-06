@@ -1,6 +1,5 @@
 use crate::logic::ammo::{Ammo, BULLET_HEIGHT, BULLET_WIDTH};
-use crate::logic::bullet::Bullet;
-use crate::logic::bullet::BULLET_SIZE;
+use crate::logic::physics::ShootingEvent;
 use crate::logic::physics::{ColliderType, Movement};
 use crate::{WINDOWHEIGHT, WINDOWWIDTH};
 use bevy::prelude::*;
@@ -102,43 +101,20 @@ fn look_at_cursor(windows: Res<Windows>, mut player_query: Query<&mut Transform,
 }
 
 // The player shoots with space
-// The bullet starts moving in the direction the player is facing.
 fn shoot(
-    mut player_query: Query<(&Transform, &mut Player)>,
-    mut commands: Commands,
+    mut player_query: Query<(Entity, &mut Player)>,
     keyboard_input: Res<Input<KeyCode>>,
     buttons: Res<Input<MouseButton>>,
+    mut event_writer: EventWriter<ShootingEvent>,
 ) {
-    let (player_transform, mut player) = player_query
+    let (player_entity, mut player) = player_query
         .get_single_mut()
         .expect("Could not find a single player");
 
     if keyboard_input.just_pressed(KeyCode::Space) || buttons.just_pressed(MouseButton::Left) {
-        let player_translation = player_transform.translation;
-
         // The player cannot shoot if they have no ammunition
         if player.ammo > 0 {
-            commands
-                .spawn()
-                .insert_bundle(SpriteBundle {
-                    sprite: Sprite {
-                        custom_size: Some(Vec2::new(BULLET_SIZE, BULLET_SIZE)),
-                        ..Default::default()
-                    },
-                    // Scale the local y unit vector so that the bullet does not
-                    // immediately collide with the player.
-                    transform: Transform::from_translation(
-                        player_translation + player_transform.local_y() * 50.0,
-                    ),
-                    ..Default::default()
-                })
-                .insert(Bullet)
-                .insert(Movement {
-                    // 400.0 is the speed of the bullets
-                    velocity: player_transform.local_y() * 400.0,
-                })
-                .insert(ColliderType::Reflect);
-
+            event_writer.send(ShootingEvent(player_entity));
             player.ammo -= 1;
         }
     }

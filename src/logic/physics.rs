@@ -196,7 +196,7 @@ fn stop_moving_entity(
 
 // Specifies that the entity can shoot
 #[derive(Component)]
-pub struct ShootingEvent(Entity);
+pub struct ShootingEvent(pub Entity);
 
 // Spawn a bullet that moves in the direction the transform is facing.
 fn shoot(

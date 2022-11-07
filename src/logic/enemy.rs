@@ -9,17 +9,24 @@ use std::time::Duration;
 
 pub struct EnemyPlugin;
 
-const ENEMY_SPAWN_TIMESTEP: f64 = 3.0;
+const NORMAL_ENEMY_SPAWN_TIMESTEP: f64 = 3.0;
+const SHOOTING_ENEMY_SPAWN_TIMESTEP: f64 = 5.0;
 pub const ENEMY_SIZE: f32 = 40.0;
 
 impl Plugin for EnemyPlugin {
     fn build(&self, app: &mut App) {
+        // NOTE: it might make more sense for these two to be on a normal timer instead of on fixed time step
         app.add_system_set(
             SystemSet::new()
-                .with_run_criteria(FixedTimestep::step(ENEMY_SPAWN_TIMESTEP))
-                .with_system(generate_spawn_coordinates),
+                .with_run_criteria(FixedTimestep::step(NORMAL_ENEMY_SPAWN_TIMESTEP))
+                .with_system(spawn_normal_enemy),
         )
-        .add_system(move_enemies)
+        .add_system_set(
+            SystemSet::new()
+                .with_run_criteria(FixedTimestep::step(SHOOTING_ENEMY_SPAWN_TIMESTEP))
+                .with_system(spawn_shooting_enemy),
+        )
+        .add_system(move_normal_enemies)
         .add_event::<EnemyDeathEvent>()
         .add_system(enemy_player_collisions)
         .add_system(spawn_enemies);
@@ -33,17 +40,37 @@ pub struct Enemy {
     speed: f32,
 }
 
+// Shooting enemies need a few things
+// 1. The ability to shoot
+// 2. Player collisions should destroy, really wished relations existed :(
+// 3. Shooting enemy should rotate to face the player
+
 #[derive(Component)]
 struct ShootingEnemy;
 
 // Shows the location of where an enemy is going to spawn in
 #[derive(Component)]
-struct EnemySpawnLocation {
+struct EnemySpawn {
+    // The timer here refers to how long it takes for the enemy to spawn in
     spawn_timer: Timer,
+    // The type of enemy that is going to spawn in
+    enemy_type: EnemyType,
 }
 
-// Run this every enemy spawn timestep
-fn generate_spawn_coordinates(mut commands: Commands) {
+enum EnemyType {
+    ShootingEnemy,
+    NormalEnemy,
+}
+
+fn spawn_shooting_enemy(mut commands: Commands) {
+    spawn_enemy_location(&mut commands, EnemyType::ShootingEnemy);
+}
+
+fn spawn_normal_enemy(mut commands: Commands) {
+    spawn_enemy_location(&mut commands, EnemyType::NormalEnemy);
+}
+
+fn spawn_enemy_location(commands: &mut Commands, enemy_type: EnemyType) {
     let mut rng = rand::thread_rng();
 
     let (x, y) = (
@@ -53,8 +80,9 @@ fn generate_spawn_coordinates(mut commands: Commands) {
 
     commands
         .spawn()
-        .insert(EnemySpawnLocation {
+        .insert(EnemySpawn {
             spawn_timer: Timer::new(Duration::from_secs(3), false),
+            enemy_type,
         })
         .insert_bundle(SpriteBundle {
             sprite: Sprite {
@@ -70,28 +98,47 @@ fn generate_spawn_coordinates(mut commands: Commands) {
 
 // Spawn enemies once the enemy spawn timer is up
 fn spawn_enemies(
-    mut enemy_spawn_query: Query<(Entity, &Transform, &mut EnemySpawnLocation)>,
+    mut enemy_spawn_query: Query<(Entity, &Transform, &mut EnemySpawn)>,
     mut commands: Commands,
     time: Res<Time>,
 ) {
-    for (entity, transform, mut enemy_spawns) in &mut enemy_spawn_query {
-        enemy_spawns.spawn_timer.tick(time.delta());
+    for (entity, transform, mut enemy_spawn) in &mut enemy_spawn_query {
+        enemy_spawn.spawn_timer.tick(time.delta());
 
-        if enemy_spawns.spawn_timer.finished() {
+        // TODO spawn a shooting enemy
+        if enemy_spawn.spawn_timer.finished() {
             commands.entity(entity).despawn();
 
-            commands
-                .spawn()
-                .insert_bundle(SpriteBundle {
-                    sprite: Sprite {
-                        color: Color::MAROON,
-                        custom_size: Some(Vec2::new(ENEMY_SIZE, ENEMY_SIZE)),
-                        ..Default::default()
-                    },
-                    transform: *transform,
-                    ..Default::default()
-                })
-                .insert(Enemy { speed: 200.0 });
+            match enemy_spawn.enemy_type {
+                EnemyType::NormalEnemy => {
+                    commands
+                        .spawn()
+                        .insert_bundle(SpriteBundle {
+                            sprite: Sprite {
+                                color: Color::MAROON,
+                                custom_size: Some(Vec2::new(ENEMY_SIZE, ENEMY_SIZE)),
+                                ..Default::default()
+                            },
+                            transform: *transform,
+                            ..Default::default()
+                        })
+                        .insert(Enemy { speed: 200.0 });
+                }
+                EnemyType::ShootingEnemy => {
+                    commands
+                        .spawn()
+                        .insert_bundle(SpriteBundle {
+                            sprite: Sprite {
+                                color: Color::ORANGE_RED,
+                                custom_size: Some(Vec2::new(ENEMY_SIZE, ENEMY_SIZE)),
+                                ..Default::default()
+                            },
+                            transform: *transform,
+                            ..Default::default()
+                        })
+                        .insert(ShootingEnemy);
+                }
+            }
         }
     }
 }
@@ -101,7 +148,7 @@ pub struct EnemyDeathEvent {
 }
 
 // Enemies follow the player.
-fn move_enemies(
+fn move_normal_enemies(
     mut enemy_query: Query<(&mut Transform, &Enemy), Without<Player>>,
     player_query: Query<&Transform, (With<Player>, Without<Enemy>)>,
     time: Res<Time>,

@@ -1,4 +1,4 @@
-use crate::logic::physics::{ColliderType, Movement};
+use crate::logic::physics::{ColliderType, Movement, ShootingEvent};
 use crate::logic::player::{Player, PLAYER_SIZE};
 use crate::{WINDOWHEIGHT, WINDOWWIDTH};
 use bevy::prelude::*;
@@ -9,8 +9,9 @@ use std::time::Duration;
 
 pub struct EnemyPlugin;
 
-const NORMAL_ENEMY_SPAWN_TIMESTEP: f64 = 3.0;
-const SHOOTING_ENEMY_SPAWN_TIMESTEP: f64 = 5.0;
+const NORMAL_ENEMY_SPAWN_TIMESTEP: f64 = 4.0;
+const SHOOTING_ENEMY_SPAWN_TIMESTEP: f64 = 7.0;
+const SHOOTING_ENEMY_SHOOT_TIMESTEP: f64 = 2.0;
 pub const ENEMY_SIZE: f32 = 40.0;
 
 impl Plugin for EnemyPlugin {
@@ -26,9 +27,16 @@ impl Plugin for EnemyPlugin {
                 .with_run_criteria(FixedTimestep::step(SHOOTING_ENEMY_SPAWN_TIMESTEP))
                 .with_system(spawn_shooting_enemy),
         )
+        .add_system_set(
+            SystemSet::new()
+                .with_run_criteria(FixedTimestep::step(SHOOTING_ENEMY_SHOOT_TIMESTEP))
+                .with_system(shooting_enemy_shooting),
+        )
         .add_system(move_normal_enemies)
         .add_event::<EnemyDeathEvent>()
-        .add_system(enemy_player_collisions)
+        .add_system(normal_enemy_player_collisions)
+        .add_system(shooting_enemy_player_collisions)
+        .add_system(rotate_to_face_player)
         .add_system(spawn_enemies);
     }
 }
@@ -39,11 +47,10 @@ pub struct Enemy;
 
 // Shooting enemies need a few things
 // 1. The ability to shoot
-// 2. Player collisions should destroy, really wished relations existed :(
 // 3. Shooting enemy should rotate to face the player
 
 #[derive(Component)]
-struct ShootingEnemy;
+pub struct ShootingEnemy;
 
 // Shows the location of where an enemy is going to spawn in
 #[derive(Component)]
@@ -83,7 +90,7 @@ fn spawn_enemy_location(commands: &mut Commands, enemy_type: EnemyType) {
         })
         .insert_bundle(SpriteBundle {
             sprite: Sprite {
-                color: Color::RED,
+                color: Color::GREEN,
                 custom_size: Some(Vec2::new(ENEMY_SIZE, ENEMY_SIZE)),
                 ..Default::default()
             },
@@ -112,7 +119,7 @@ fn spawn_enemies(
                         .spawn()
                         .insert_bundle(SpriteBundle {
                             sprite: Sprite {
-                                color: Color::MAROON,
+                                color: Color::PURPLE,
                                 custom_size: Some(Vec2::new(ENEMY_SIZE, ENEMY_SIZE)),
                                 ..Default::default()
                             },
@@ -129,7 +136,7 @@ fn spawn_enemies(
                         .spawn()
                         .insert_bundle(SpriteBundle {
                             sprite: Sprite {
-                                color: Color::ORANGE_RED,
+                                color: Color::RED,
                                 custom_size: Some(Vec2::new(ENEMY_SIZE, ENEMY_SIZE)),
                                 ..Default::default()
                             },
@@ -168,8 +175,42 @@ fn move_normal_enemies(
     }
 }
 
+// Shooting enemies shoot at the player
+fn shooting_enemy_shooting(
+    mut event_writer: EventWriter<ShootingEvent>,
+    query: Query<Entity, With<ShootingEnemy>>,
+) {
+    for shooting_enemy_entity in &query {
+        event_writer.send(ShootingEvent(shooting_enemy_entity));
+    }
+}
+
+// TODO abstract out into a rotation component
+// TODO use fixed time step or delta time?
+// Rotate the shooting enemy so it faces the player
+fn rotate_to_face_player(
+    mut shooting_enemy_query: Query<&mut Transform, With<ShootingEnemy>>,
+    player_query: Query<&Transform, (With<Player>, Without<ShootingEnemy>)>,
+) {
+    let player_transform = player_query
+        .get_single()
+        .expect("Could not find single player");
+
+    for mut shooting_enemy_transform in &mut shooting_enemy_query {
+        let direction_to_player =
+            (player_transform.translation - shooting_enemy_transform.translation).normalize();
+
+        let rotate_to_player = Quat::from_rotation_arc(Vec3::Y, direction_to_player);
+        shooting_enemy_transform.rotation = rotate_to_player;
+    }
+    // Get the normalized vector from the enemy to the player
+    // Call Quat::from_rotation_arc using Vec3::Y as the up
+    // set the rotation of the shooting enemy
+}
+
+// I don't like how I have two identical systems :(
 // Enemies kill the player if they touch them
-fn enemy_player_collisions(
+fn normal_enemy_player_collisions(
     enemy_query: Query<&Transform, With<Enemy>>,
     player_query: Query<(&Transform, Entity), (With<Player>, Without<Enemy>)>,
     mut commands: Commands,
@@ -179,13 +220,47 @@ fn enemy_player_collisions(
         .expect("Could not find single player");
 
     for enemy_transform in &enemy_query {
-        if let Some(_collision) = collide(
-            enemy_transform.translation,
-            Vec2::new(ENEMY_SIZE, ENEMY_SIZE),
-            player_transform.translation,
-            Vec2::new(PLAYER_SIZE, PLAYER_SIZE),
-        ) {
-            commands.entity(player_entity).despawn();
-        }
+        enemy_player_collisions(
+            &mut commands,
+            &enemy_transform.translation,
+            &player_transform.translation,
+            player_entity,
+        );
+    }
+}
+
+// Enemies kill the player if they touch them
+fn shooting_enemy_player_collisions(
+    enemy_query: Query<&Transform, With<ShootingEnemy>>,
+    player_query: Query<(&Transform, Entity), (With<Player>, Without<ShootingEnemy>)>,
+    mut commands: Commands,
+) {
+    let (player_transform, player_entity) = player_query
+        .get_single()
+        .expect("Could not find single player");
+
+    for enemy_transform in &enemy_query {
+        enemy_player_collisions(
+            &mut commands,
+            &enemy_transform.translation,
+            &player_transform.translation,
+            player_entity,
+        );
+    }
+}
+
+fn enemy_player_collisions(
+    commands: &mut Commands,
+    enemy_translation: &Vec3,
+    player_translation: &Vec3,
+    player_entity: Entity,
+) {
+    if let Some(_collision) = collide(
+        *enemy_translation,
+        Vec2::new(ENEMY_SIZE, ENEMY_SIZE),
+        *player_translation,
+        Vec2::new(PLAYER_SIZE, PLAYER_SIZE),
+    ) {
+        commands.entity(player_entity).despawn();
     }
 }

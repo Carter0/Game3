@@ -1,4 +1,4 @@
-use crate::logic::physics::ColliderType;
+use crate::logic::physics::{ColliderType, Movement};
 use crate::logic::player::{Player, PLAYER_SIZE};
 use crate::{WINDOWHEIGHT, WINDOWWIDTH};
 use bevy::prelude::*;
@@ -35,10 +35,7 @@ impl Plugin for EnemyPlugin {
 
 // TODO speed might be able to be put into movement component somehow
 #[derive(Component)]
-pub struct Enemy {
-    // Speed is always positive
-    speed: f32,
-}
+pub struct Enemy;
 
 // Shooting enemies need a few things
 // 1. The ability to shoot
@@ -122,7 +119,10 @@ fn spawn_enemies(
                             transform: *transform,
                             ..Default::default()
                         })
-                        .insert(Enemy { speed: 200.0 });
+                        .insert(Enemy)
+                        .insert(Movement {
+                            velocity: Vec3::new(0.0, 0.0, 0.0),
+                        });
                 }
                 EnemyType::ShootingEnemy => {
                     commands
@@ -149,21 +149,22 @@ pub struct EnemyDeathEvent {
 
 // Enemies follow the player.
 fn move_normal_enemies(
-    mut enemy_query: Query<(&mut Transform, &Enemy), Without<Player>>,
+    mut enemy_query: Query<(&Transform, &mut Movement), (With<Enemy>, Without<Player>)>,
     player_query: Query<&Transform, (With<Player>, Without<Enemy>)>,
-    time: Res<Time>,
 ) {
     let player_transform = player_query
         .get_single()
         .expect("Could not find a single player.");
 
-    for (mut enemy_transform, enemy) in &mut enemy_query {
+    for (enemy_transform, mut movement) in &mut enemy_query {
         let vector_to_player = player_transform.translation;
         let vector_to_enemy = enemy_transform.translation;
-        let direction_from_enemy_to_player = (vector_to_player - vector_to_enemy).normalize();
+        let direction_from_enemy_to_player: Vec3 = (vector_to_player - vector_to_enemy).normalize();
 
-        enemy_transform.translation +=
-            direction_from_enemy_to_player * enemy.speed * time.delta_seconds();
+        // This works by changing the velocity of the enemy every tick
+        // to be in the direction of the player
+        // 200.0 is the speed of the enemy
+        movement.velocity = direction_from_enemy_to_player * 200.0;
     }
 }
 

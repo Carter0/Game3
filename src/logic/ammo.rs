@@ -22,8 +22,7 @@ pub struct Ammo;
 fn spawn_ammo(mut enemy_death_events: EventReader<EnemyDeathEvent>, mut commands: Commands) {
     for enemy_death_event in enemy_death_events.iter() {
         commands
-            .spawn()
-            .insert_bundle(SpriteBundle {
+            .spawn(SpriteBundle {
                 sprite: Sprite {
                     custom_size: Some(Vec2::new(BULLET_WIDTH, BULLET_HEIGHT)),
                     ..Default::default()
@@ -61,8 +60,7 @@ fn show_ammo_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
     ]);
 
     commands
-        .spawn()
-        .insert_bundle(TextBundle {
+        .spawn(TextBundle {
             text: score_text,
             style: Style {
                 align_self: AlignSelf::FlexEnd,

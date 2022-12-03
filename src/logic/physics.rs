@@ -1,4 +1,5 @@
 use crate::logic::bullet::{Bullet, BULLET_SIZE};
+use crate::BulletSprite;
 use bevy::prelude::*;
 use bevy::sprite::collide_aabb::{collide, Collision};
 use bevy::time::FixedTimestep;
@@ -199,6 +200,7 @@ fn shoot(
     mut shooting_event: EventReader<ShootingEvent>,
     mut commands: Commands,
     transform_query: Query<&Transform>,
+    bullet_sprite: Res<BulletSprite>,
 ) {
     for ShootingEvent(entity) in shooting_event.iter() {
         let transform = transform_query
@@ -206,12 +208,12 @@ fn shoot(
             .expect("Everything that shoots needs a transform.");
 
         commands
-            .spawn()
-            .insert_bundle(SpriteBundle {
+            .spawn(SpriteBundle {
                 sprite: Sprite {
                     custom_size: Some(Vec2::new(BULLET_SIZE, BULLET_SIZE)),
                     ..Default::default()
                 },
+                texture: bullet_sprite.0.clone(),
                 // Scale the local y unit vector so that the bullet does not
                 // immediately collide with the transform.
                 transform: Transform::from_translation(

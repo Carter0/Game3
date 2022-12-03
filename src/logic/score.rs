@@ -38,8 +38,7 @@ fn spawn_score_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
     ]);
 
     commands
-        .spawn()
-        .insert_bundle(TextBundle {
+        .spawn(TextBundle {
             text: score_text,
             style: Style {
                 // Flex end is making the node go to the top of the screen

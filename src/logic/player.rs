@@ -26,16 +26,17 @@ pub struct Player {
     pub ammo: u8,
 }
 
-fn spawn_player(mut commands: Commands) {
+fn spawn_player(mut commands: Commands, server: Res<AssetServer>) {
     let player_size = Vec2::new(PLAYER_SIZE, PLAYER_SIZE);
+    let handle: Handle<Image> = server.load("sprites/player.png");
 
     commands
-        .spawn()
-        .insert_bundle(SpriteBundle {
+        .spawn(SpriteBundle {
             sprite: Sprite {
                 custom_size: Some(player_size),
                 ..Default::default()
             },
+            texture: handle,
             ..Default::default()
         })
         .insert(Player {

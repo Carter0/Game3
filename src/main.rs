@@ -7,14 +7,16 @@ mod logic;
 
 fn main() {
     App::new()
-        .insert_resource(WindowDescriptor {
-            title: "TBD".to_string(),
-            width: WINDOWWIDTH,
-            height: WINDOWHEIGHT,
-            ..Default::default()
-        })
-        .add_plugins(DefaultPlugins)
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            window: WindowDescriptor {
+                width: WINDOWWIDTH,
+                height: WINDOWHEIGHT,
+                ..Default::default()
+            },
+            ..default()
+        }))
         .add_startup_system(spawn_camera)
+        .add_startup_system(load_sprite_assets)
         .add_plugin(logic::player::PlayerPlugin)
         .add_plugin(logic::walls::WallsPlugin)
         .add_plugin(logic::bullet::BulletPlugin)
@@ -25,9 +27,23 @@ fn main() {
         .run();
 }
 
+#[derive(Resource)]
+pub struct EnemySprite(Handle<Image>);
+
+#[derive(Resource)]
+pub struct BulletSprite(Handle<Image>);
+
+// Store sprite assets that I will be accessing over and over at startup.
+fn load_sprite_assets(mut commands: Commands, server: Res<AssetServer>) {
+    let enemy_handle: Handle<Image> = server.load("sprites/basic-enemy.png");
+    let bullet_handle: Handle<Image> = server.load("sprites/bullet.png");
+
+    commands.insert_resource(EnemySprite(enemy_handle));
+    commands.insert_resource(BulletSprite(bullet_handle));
+}
+
 fn spawn_camera(mut commands: Commands) {
-    commands.spawn().insert_bundle(Camera2dBundle::default());
+    commands.spawn(Camera2dBundle::default());
 }
 
 // TODO make a follow player component (needed to do the timestep stuff correctly)
-// TODO create a shooting enemy

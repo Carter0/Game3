@@ -83,12 +83,11 @@ fn spawn_enemy_location(commands: &mut Commands, enemy_type: EnemyType) {
     );
 
     commands
-        .spawn()
-        .insert(EnemySpawn {
-            spawn_timer: Timer::new(Duration::from_secs(3), false),
+        .spawn(EnemySpawn {
+            spawn_timer: Timer::new(Duration::from_secs(3), TimerMode::Once),
             enemy_type,
         })
-        .insert_bundle(SpriteBundle {
+        .insert(SpriteBundle {
             sprite: Sprite {
                 color: Color::GREEN,
                 custom_size: Some(Vec2::new(ENEMY_SIZE, ENEMY_SIZE)),
@@ -104,25 +103,26 @@ fn spawn_enemy_location(commands: &mut Commands, enemy_type: EnemyType) {
 fn spawn_enemies(
     mut enemy_spawn_query: Query<(Entity, &Transform, &mut EnemySpawn)>,
     mut commands: Commands,
+    // server: Res<AssetServer>,
     time: Res<Time>,
 ) {
     for (entity, transform, mut enemy_spawn) in &mut enemy_spawn_query {
+        // // This line needs to be moved somwhere else
+        // let handle: Handle<Image> = server.load("sprites/basic-enemy.png");
         enemy_spawn.spawn_timer.tick(time.delta());
 
-        // TODO spawn a shooting enemy
         if enemy_spawn.spawn_timer.finished() {
             commands.entity(entity).despawn();
 
             match enemy_spawn.enemy_type {
                 EnemyType::NormalEnemy => {
                     commands
-                        .spawn()
-                        .insert_bundle(SpriteBundle {
+                        .spawn(SpriteBundle {
                             sprite: Sprite {
-                                color: Color::PURPLE,
                                 custom_size: Some(Vec2::new(ENEMY_SIZE, ENEMY_SIZE)),
                                 ..Default::default()
                             },
+                            // texture: handle,
                             transform: *transform,
                             ..Default::default()
                         })
@@ -133,8 +133,7 @@ fn spawn_enemies(
                 }
                 EnemyType::ShootingEnemy => {
                     commands
-                        .spawn()
-                        .insert_bundle(SpriteBundle {
+                        .spawn(SpriteBundle {
                             sprite: Sprite {
                                 color: Color::RED,
                                 custom_size: Some(Vec2::new(ENEMY_SIZE, ENEMY_SIZE)),

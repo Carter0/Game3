@@ -1,6 +1,6 @@
 use crate::logic::physics::{ColliderType, Movement, ShootingEvent};
 use crate::logic::player::{Player, PLAYER_SIZE};
-use crate::{WINDOWHEIGHT, WINDOWWIDTH};
+use crate::{EnemySprite, WINDOWHEIGHT, WINDOWWIDTH};
 use bevy::prelude::*;
 use bevy::sprite::collide_aabb::collide;
 use bevy::time::FixedTimestep;
@@ -103,12 +103,10 @@ fn spawn_enemy_location(commands: &mut Commands, enemy_type: EnemyType) {
 fn spawn_enemies(
     mut enemy_spawn_query: Query<(Entity, &Transform, &mut EnemySpawn)>,
     mut commands: Commands,
-    // server: Res<AssetServer>,
+    enemy_sprite: Res<EnemySprite>,
     time: Res<Time>,
 ) {
     for (entity, transform, mut enemy_spawn) in &mut enemy_spawn_query {
-        // // This line needs to be moved somwhere else
-        // let handle: Handle<Image> = server.load("sprites/basic-enemy.png");
         enemy_spawn.spawn_timer.tick(time.delta());
 
         if enemy_spawn.spawn_timer.finished() {
@@ -122,14 +120,15 @@ fn spawn_enemies(
                                 custom_size: Some(Vec2::new(ENEMY_SIZE, ENEMY_SIZE)),
                                 ..Default::default()
                             },
-                            // texture: handle,
+                            texture: enemy_sprite.0.clone(),
                             transform: *transform,
                             ..Default::default()
                         })
                         .insert(Enemy)
                         .insert(Movement {
                             velocity: Vec3::new(0.0, 0.0, 0.0),
-                        });
+                        })
+                        .insert(FacingPlayer);
                 }
                 EnemyType::ShootingEnemy => {
                     commands
@@ -142,7 +141,8 @@ fn spawn_enemies(
                             transform: *transform,
                             ..Default::default()
                         })
-                        .insert(ShootingEnemy);
+                        .insert(ShootingEnemy)
+                        .insert(FacingPlayer);
                 }
             }
         }
@@ -184,27 +184,24 @@ fn shooting_enemy_shooting(
     }
 }
 
-// TODO abstract out into a rotation component
-// TODO use fixed time step or delta time?
-// Rotate the shooting enemy so it faces the player
+#[derive(Component)]
+struct FacingPlayer;
+
 fn rotate_to_face_player(
-    mut shooting_enemy_query: Query<&mut Transform, With<ShootingEnemy>>,
-    player_query: Query<&Transform, (With<Player>, Without<ShootingEnemy>)>,
+    mut facing_player_query: Query<&mut Transform, With<FacingPlayer>>,
+    player_query: Query<&Transform, (With<Player>, Without<FacingPlayer>)>,
 ) {
     let player_transform = player_query
         .get_single()
         .expect("Could not find single player");
 
-    for mut shooting_enemy_transform in &mut shooting_enemy_query {
+    for mut facing_transform in &mut facing_player_query {
         let direction_to_player =
-            (player_transform.translation - shooting_enemy_transform.translation).normalize();
+            (player_transform.translation - facing_transform.translation).normalize();
 
         let rotate_to_player = Quat::from_rotation_arc(Vec3::Y, direction_to_player);
-        shooting_enemy_transform.rotation = rotate_to_player;
+        facing_transform.rotation = rotate_to_player;
     }
-    // Get the normalized vector from the enemy to the player
-    // Call Quat::from_rotation_arc using Vec3::Y as the up
-    // set the rotation of the shooting enemy
 }
 
 // I don't like how I have two identical systems :(

@@ -47,3 +47,4 @@ fn spawn_camera(mut commands: Commands) {
 }
 
 // TODO make a follow player component (needed to do the timestep stuff correctly)
+// TODO make a facing player component

@@ -1,6 +1,6 @@
 use crate::logic::physics::{ColliderType, Movement, ShootingEvent};
 use crate::logic::player::{Player, PLAYER_SIZE};
-use crate::{EnemySprite, WINDOWHEIGHT, WINDOWWIDTH};
+use crate::{EnemySprite, TurretSprite, WINDOWHEIGHT, WINDOWWIDTH};
 use bevy::prelude::*;
 use bevy::sprite::collide_aabb::collide;
 use bevy::time::FixedTimestep;
@@ -41,13 +41,8 @@ impl Plugin for EnemyPlugin {
     }
 }
 
-// TODO speed might be able to be put into movement component somehow
 #[derive(Component)]
 pub struct Enemy;
-
-// Shooting enemies need a few things
-// 1. The ability to shoot
-// 3. Shooting enemy should rotate to face the player
 
 #[derive(Component)]
 pub struct ShootingEnemy;
@@ -104,6 +99,7 @@ fn spawn_enemies(
     mut enemy_spawn_query: Query<(Entity, &Transform, &mut EnemySpawn)>,
     mut commands: Commands,
     enemy_sprite: Res<EnemySprite>,
+    turret_sprite: Res<TurretSprite>,
     time: Res<Time>,
 ) {
     for (entity, transform, mut enemy_spawn) in &mut enemy_spawn_query {
@@ -134,10 +130,10 @@ fn spawn_enemies(
                     commands
                         .spawn(SpriteBundle {
                             sprite: Sprite {
-                                color: Color::RED,
                                 custom_size: Some(Vec2::new(ENEMY_SIZE, ENEMY_SIZE)),
                                 ..Default::default()
                             },
+                            texture: turret_sprite.0.clone(),
                             transform: *transform,
                             ..Default::default()
                         })

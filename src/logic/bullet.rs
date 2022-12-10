@@ -19,7 +19,6 @@ impl Plugin for BulletPlugin {
 #[derive(Component)]
 pub struct Bullet;
 
-// TODO find some way to abstract this :(
 // When the bullet hits an enemy destroy both the
 // bullet and the enemy.
 fn bullet_normal_enemy_collisions(

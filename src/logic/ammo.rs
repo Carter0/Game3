@@ -37,7 +37,6 @@ fn spawn_ammo(mut enemy_death_events: EventReader<EnemyDeathEvent>, mut commands
 #[derive(Component)]
 pub struct AmmoUI;
 
-// TODO make the ammo UI look nicer
 // For now ammo is just a number in the bottom right
 fn show_ammo_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
     let score_text: Text = Text::from_sections([

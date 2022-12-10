@@ -1,5 +1,6 @@
 use crate::logic::enemy::EnemyDeathEvent;
 use crate::logic::player::{Player, STARTING_AMMO};
+use crate::AmmoSprite;
 use bevy::prelude::*;
 
 pub struct AmmoPlugin;
@@ -19,7 +20,11 @@ impl Plugin for AmmoPlugin {
 pub struct Ammo;
 
 // Ammo spawns from dead enemies
-fn spawn_ammo(mut enemy_death_events: EventReader<EnemyDeathEvent>, mut commands: Commands) {
+fn spawn_ammo(
+    mut enemy_death_events: EventReader<EnemyDeathEvent>,
+    mut commands: Commands,
+    ammo_sprite: Res<AmmoSprite>,
+) {
     for enemy_death_event in enemy_death_events.iter() {
         commands
             .spawn(SpriteBundle {
@@ -27,6 +32,7 @@ fn spawn_ammo(mut enemy_death_events: EventReader<EnemyDeathEvent>, mut commands
                     custom_size: Some(Vec2::new(BULLET_WIDTH, BULLET_HEIGHT)),
                     ..Default::default()
                 },
+                texture: ammo_sprite.0.clone(),
                 transform: Transform::from_translation(enemy_death_event.death_position),
                 ..Default::default()
             })

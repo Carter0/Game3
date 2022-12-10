@@ -36,15 +36,20 @@ pub struct BulletSprite(Handle<Image>);
 #[derive(Resource)]
 pub struct TurretSprite(Handle<Image>);
 
+#[derive(Resource)]
+pub struct AmmoSprite(Handle<Image>);
+
 // Store sprite assets that I will be accessing over and over at startup.
 fn load_sprite_assets(mut commands: Commands, server: Res<AssetServer>) {
     let enemy_handle: Handle<Image> = server.load("sprites/basic-enemy.png");
     let bullet_handle: Handle<Image> = server.load("sprites/bullet.png");
     let turret_handle: Handle<Image> = server.load("sprites/turret.png");
+    let ammo_handle: Handle<Image> = server.load("sprites/ammo.png");
 
     commands.insert_resource(EnemySprite(enemy_handle));
     commands.insert_resource(BulletSprite(bullet_handle));
     commands.insert_resource(TurretSprite(turret_handle));
+    commands.insert_resource(AmmoSprite(ammo_handle));
 }
 
 fn spawn_camera(mut commands: Commands) {

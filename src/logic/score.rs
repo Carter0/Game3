@@ -15,8 +15,6 @@ struct Score {
     value: u32,
 }
 
-// NOTE for UI, the origin is in the bottom left corner.
-// The score UI is in the top left of the screen
 fn spawn_score_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
     let score_text: Text = Text::from_sections([
         TextSection::new(
@@ -43,7 +41,7 @@ fn spawn_score_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
             style: Style {
                 // Flex end is making the node go to the top of the screen
                 // since the origin is in the bottom left.
-                align_self: AlignSelf::FlexEnd,
+                // align_self: AlignSelf::FlexEnd,
                 // Move the node a little over
                 position: UiRect {
                     left: Val::Px(50.0),

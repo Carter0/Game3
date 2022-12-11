@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::time::FixedTimestep;
 
 const WINDOWHEIGHT: f32 = 1000.0;
 const WINDOWWIDTH: f32 = 1200.0;
@@ -17,6 +18,11 @@ fn main() {
         }))
         .add_startup_system(spawn_camera)
         .add_startup_system(load_sprite_assets)
+        .add_system_set(
+            SystemSet::new()
+                .with_run_criteria(FixedTimestep::step(FLASHING_TIMESTEP))
+                .with_system(flashing),
+        )
         .add_plugin(logic::player::PlayerPlugin)
         .add_plugin(logic::walls::WallsPlugin)
         .add_plugin(logic::bullet::BulletPlugin)
@@ -25,6 +31,26 @@ fn main() {
         .add_plugin(logic::ammo::AmmoPlugin)
         .add_plugin(logic::physics::PhysicsPlugin)
         .run();
+}
+
+// Flash timestep
+const FLASHING_TIMESTEP: f64 = 0.2;
+
+// Enemies spawning in should flash
+#[derive(Component)]
+pub struct Flashing {
+    flashed: bool,
+}
+
+fn flashing(mut query: Query<(&mut Sprite, &mut Flashing)>) {
+    for (mut sprite, mut flashing) in &mut query {
+        if !flashing.flashed {
+            sprite.color = Color::BLACK;
+        } else {
+            sprite.color = Color::CRIMSON;
+        }
+        flashing.flashed = !flashing.flashed;
+    }
 }
 
 #[derive(Resource)]

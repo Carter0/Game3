@@ -1,6 +1,6 @@
 use crate::logic::physics::{ColliderType, Movement, ShootingEvent};
 use crate::logic::player::{Player, PLAYER_SIZE};
-use crate::{EnemySprite, TurretSprite, WINDOWHEIGHT, WINDOWWIDTH};
+use crate::{EnemySprite, Flashing, TurretSprite, WINDOWHEIGHT, WINDOWWIDTH};
 use bevy::prelude::*;
 use bevy::sprite::collide_aabb::collide;
 use bevy::time::FixedTimestep;
@@ -61,15 +61,23 @@ enum EnemyType {
     NormalEnemy,
 }
 
-fn spawn_shooting_enemy(mut commands: Commands) {
-    spawn_enemy_location(&mut commands, EnemyType::ShootingEnemy);
+fn spawn_shooting_enemy(mut commands: Commands, turret_sprite: Res<TurretSprite>) {
+    spawn_enemy_location(
+        &mut commands,
+        EnemyType::ShootingEnemy,
+        turret_sprite.0.clone(),
+    );
 }
 
-fn spawn_normal_enemy(mut commands: Commands) {
-    spawn_enemy_location(&mut commands, EnemyType::NormalEnemy);
+fn spawn_normal_enemy(mut commands: Commands, enemy_sprite: Res<EnemySprite>) {
+    spawn_enemy_location(
+        &mut commands,
+        EnemyType::NormalEnemy,
+        enemy_sprite.0.clone(),
+    );
 }
 
-fn spawn_enemy_location(commands: &mut Commands, enemy_type: EnemyType) {
+fn spawn_enemy_location(commands: &mut Commands, enemy_type: EnemyType, sprite: Handle<Image>) {
     let mut rng = rand::thread_rng();
 
     let (x, y) = (
@@ -84,13 +92,15 @@ fn spawn_enemy_location(commands: &mut Commands, enemy_type: EnemyType) {
         })
         .insert(SpriteBundle {
             sprite: Sprite {
-                color: Color::GREEN,
+                color: Color::CRIMSON,
                 custom_size: Some(Vec2::new(ENEMY_SIZE, ENEMY_SIZE)),
                 ..Default::default()
             },
+            texture: sprite,
             transform: Transform::from_translation(Vec2::new(x, y).extend(0.0)),
             ..Default::default()
         })
+        .insert(Flashing { flashed: false })
         .insert(ColliderType::Stop);
 }
 

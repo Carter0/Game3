@@ -3,49 +3,93 @@ use crate::logic::player::{Player, PLAYER_SIZE};
 use crate::{EnemySprite, Flashing, TurretSprite, WINDOWHEIGHT, WINDOWWIDTH};
 use bevy::prelude::*;
 use bevy::sprite::collide_aabb::collide;
-use bevy::time::FixedTimestep;
 use rand::Rng;
 use std::time::Duration;
 
 pub struct EnemyPlugin;
 
-const NORMAL_ENEMY_SPAWN_TIMESTEP: f64 = 4.0;
-const SHOOTING_ENEMY_SPAWN_TIMESTEP: f64 = 7.0;
-const SHOOTING_ENEMY_SHOOT_TIMESTEP: f64 = 2.0;
+// const NORMAL_ENEMY_SPAWN_TIMESTEP: f64 = 4.0;
+// const SHOOTING_ENEMY_SPAWN_TIMESTEP: f64 = 7.0;
+// const SHOOTING_ENEMY_SHOOT_TIMESTEP: f64 = 2.0;
 pub const ENEMY_SIZE: f32 = 40.0;
 
 impl Plugin for EnemyPlugin {
     fn build(&self, app: &mut App) {
-        // NOTE: it might make more sense for these two to be on a normal timer instead of on fixed time step
-        app.add_system_set(
-            SystemSet::new()
-                .with_run_criteria(FixedTimestep::step(NORMAL_ENEMY_SPAWN_TIMESTEP))
-                .with_system(spawn_normal_enemy),
-        )
-        .add_system_set(
-            SystemSet::new()
-                .with_run_criteria(FixedTimestep::step(SHOOTING_ENEMY_SPAWN_TIMESTEP))
-                .with_system(spawn_shooting_enemy),
-        )
-        .add_system_set(
-            SystemSet::new()
-                .with_run_criteria(FixedTimestep::step(SHOOTING_ENEMY_SHOOT_TIMESTEP))
-                .with_system(shooting_enemy_shooting),
-        )
-        .add_system(move_normal_enemies)
-        .add_event::<EnemyDeathEvent>()
-        .add_system(normal_enemy_player_collisions)
-        .add_system(shooting_enemy_player_collisions)
-        .add_system(rotate_to_face_player)
-        .add_system(spawn_enemies);
+        app.add_startup_system(setup_enemy_spawning)
+            .add_system(tick_timers)
+            .add_system(spawn_normal_enemy.run_if(normal_enemy_spawn_system))
+            .add_system(spawn_shooting_enemy.run_if(shooting_enemy_spawn_system))
+            .add_system(shooting_enemy_shooting)
+            .add_system(move_normal_enemies)
+            .add_event::<EnemyDeathEvent>()
+            .add_system(normal_enemy_player_collisions)
+            .add_system(shooting_enemy_player_collisions)
+            .add_system(rotate_to_face_player)
+            .add_system(spawn_enemies);
     }
+}
+
+// TODO I can probs combine these timers into one somehow
+// I bet im being a dumb dumb
+#[derive(Component)]
+struct NormalSpawnTimer {
+    // The timer refers to how long it takes for each
+    // enemy spawn system to run
+    timer: Timer,
+}
+
+#[derive(Component)]
+struct ShootingSpawnTimer {
+    // The timer refers to how long it takes for each
+    // enemy spawn system to run
+    timer: Timer,
+}
+
+// TODO idk this is odd
+fn tick_timers(
+    time: Res<Time>,
+    mut query: Query<(&mut NormalSpawnTimer, &mut ShootingSpawnTimer)>,
+) {
+    for (mut normal_timer, mut shooting_timer) in &mut query {
+        normal_timer.timer.tick(time.delta());
+        shooting_timer.timer.tick(time.delta());
+    }
+}
+// on startup, setup enemy spawning
+fn setup_enemy_spawning(mut commands: Commands) {
+    commands
+        .spawn(NormalSpawnTimer {
+            timer: Timer::new(Duration::from_secs(4), TimerMode::Repeating),
+        })
+        .insert(ShootingSpawnTimer {
+            timer: Timer::new(Duration::from_secs(7), TimerMode::Repeating),
+        });
+}
+
+fn normal_enemy_spawn_system(query: Query<&NormalSpawnTimer>) -> bool {
+    let spawn_timer = query
+        .get_single()
+        .expect("Can only be one normal spawn timer");
+
+    spawn_timer.timer.finished()
+}
+
+fn shooting_enemy_spawn_system(query: Query<&ShootingSpawnTimer>) -> bool {
+    let spawn_timer = query
+        .get_single()
+        .expect("Can only be one normal spawn timer");
+
+    spawn_timer.timer.finished()
 }
 
 #[derive(Component)]
 pub struct Enemy;
 
 #[derive(Component)]
-pub struct ShootingEnemy;
+pub struct ShootingEnemy {
+    // Timer for how long it takes for an enemy to shoot
+    shooting_timer: Timer,
+}
 
 // Shows the location of where an enemy is going to spawn in
 #[derive(Component)]
@@ -100,7 +144,10 @@ fn spawn_enemy_location(commands: &mut Commands, enemy_type: EnemyType, sprite: 
             transform: Transform::from_translation(Vec2::new(x, y).extend(0.0)),
             ..Default::default()
         })
-        .insert(Flashing { flashed: false })
+        .insert(Flashing {
+            flashed: false,
+            timer: Timer::new(Duration::from_secs_f32(0.5), TimerMode::Repeating),
+        })
         .insert(ColliderType::Stop);
 }
 
@@ -147,7 +194,12 @@ fn spawn_enemies(
                             transform: *transform,
                             ..Default::default()
                         })
-                        .insert(ShootingEnemy)
+                        .insert(ShootingEnemy {
+                            shooting_timer: Timer::new(
+                                Duration::from_secs(2),
+                                TimerMode::Repeating,
+                            ),
+                        })
                         .insert(FacingPlayer);
                 }
             }
@@ -183,10 +235,14 @@ fn move_normal_enemies(
 // Shooting enemies shoot at the player
 fn shooting_enemy_shooting(
     mut event_writer: EventWriter<ShootingEvent>,
-    query: Query<Entity, With<ShootingEnemy>>,
+    mut query: Query<(Entity, &mut ShootingEnemy)>,
+    time: Res<Time>,
 ) {
-    for shooting_enemy_entity in &query {
-        event_writer.send(ShootingEvent(shooting_enemy_entity));
+    // TODO stop using events
+    for (shooting_enemy_entity, mut shooting_enemy) in &mut query {
+        if shooting_enemy.shooting_timer.tick(time.delta()).finished() {
+            event_writer.send(ShootingEvent(shooting_enemy_entity));
+        }
     }
 }
 

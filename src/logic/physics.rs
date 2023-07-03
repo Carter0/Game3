@@ -2,22 +2,31 @@ use crate::logic::bullet::{Bullet, BULLET_SIZE};
 use crate::BulletSprite;
 use bevy::prelude::*;
 use bevy::sprite::collide_aabb::{collide, Collision};
-use bevy::time::FixedTimestep;
+use itertools::Itertools;
+use std::cmp::Ordering;
 
 pub struct PhysicsPlugin;
 
-const FIXED_TIMESTEP: f64 = 1.0 / 120.0;
+const FIXED_TIMESTEP: f32 = 1.0 / 60.0;
+
+// #[derive(SystemSet, Hash, Debug, Clone, Eq, PartialEq)]
+// struct FixedTimeSet;
 
 impl Plugin for PhysicsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system_set(
-            SystemSet::new()
-                // I want collisions to be checked at double the frame rate
-                .with_run_criteria(FixedTimestep::step(FIXED_TIMESTEP))
-                .with_system(move_transforms)
-                // Will override moving the transforms if a collision occurs
-                .with_system(check_collisions.after(move_transforms)),
+        app.add_systems_to_schedule(
+            CoreSchedule::FixedUpdate,
+            (
+                move_transforms,
+                detect_collisions,
+                apply_system_buffers,
+                reflect_entity,
+                stop_moving_entity,
+                apply_system_buffers,
+            )
+                .chain(),
         )
+        .insert_resource(FixedTime::new_from_secs(FIXED_TIMESTEP))
         .add_event::<ShootingEvent>()
         .add_system(shoot);
     }
@@ -45,149 +54,324 @@ pub enum ColliderType {
     Nothing,
 }
 
-// Checks whether objects with collision components have collided.
-fn check_collisions(
-    mut collisions_query: Query<(
-        &mut Transform,
-        &Sprite,
-        Option<&mut Movement>,
-        &ColliderType,
-    )>,
-) {
-    // The combination is an arrangement of entities's components without repeats
-    let mut combinations = collisions_query.iter_combinations_mut();
+struct ColliderInfo<'a> {
+    transform: &'a Transform,
+    sprite: &'a Sprite,
+    collider_type: &'a ColliderType,
+    movement: Option<&'a Movement>,
+    entity: Entity,
+}
 
-    while let Some(
-        [(mut a_transform, a_sprite, a_movement, a_collider_type), (mut b_transform, b_sprite, b_movement, b_collider_type)],
-    ) = combinations.fetch_next()
-    {
-        let a_size: Vec2 = a_sprite
-            .custom_size
-            .expect("All sprites need to have custom sizes.");
+// This is the specific kind of ordering I want for sort and sweep.
+fn interval_ordering(col_info1: &ColliderInfo, col_info2: &ColliderInfo) -> Ordering {
+    let interval1_start =
+        col_info1.transform.translation.x - col_info1.sprite.custom_size.unwrap().x / 2.0;
 
-        let b_size: Vec2 = b_sprite
-            .custom_size
-            .expect("All sprites need to have custom sizes.");
+    let interval2_start =
+        col_info2.transform.translation.x - col_info2.sprite.custom_size.unwrap().x / 2.0;
 
-        match (a_movement, b_movement) {
-            // Invariant: Only Destroy happens when two moving objects collide (so far)
-            // NOTE I believe that destroy functionality needs relations
-            (Some(_a_movement), Some(_b_movement)) => {}
-            (Some(mut movement), None) => {
-                determine_collision(
-                    &mut movement.velocity,
-                    &mut a_transform,
-                    &a_size,
-                    &a_collider_type,
-                    &b_transform,
-                    &b_size,
-                );
-            }
-            (None, Some(mut movement)) => {
-                determine_collision(
-                    &mut movement.velocity,
-                    &mut b_transform,
-                    &b_size,
-                    &b_collider_type,
-                    &a_transform,
-                    &a_size,
-                );
-            }
-            (None, None) => {}
+    let interval1_end =
+        col_info1.transform.translation.x + col_info1.sprite.custom_size.unwrap().x / 2.0;
+
+    let interval2_end =
+        col_info2.transform.translation.x + col_info2.sprite.custom_size.unwrap().x / 2.0;
+
+    if interval1_start < interval2_start {
+        return Ordering::Less;
+    }
+
+    if interval1_start > interval2_start {
+        return Ordering::Greater;
+    }
+
+    // start values are equal
+
+    if interval1_end < interval2_end {
+        return Ordering::Less;
+    }
+
+    if interval1_end > interval2_end {
+        return Ordering::Greater;
+    }
+
+    Ordering::Equal
+}
+
+fn group_by_helper(collider_info_one: &ColliderInfo, collider_info_two: &ColliderInfo) -> bool {
+    let interval_one_end = collider_info_one.transform.translation.x
+        + collider_info_one.sprite.custom_size.unwrap().x / 2.0;
+
+    let interval_two_start = collider_info_two.transform.translation.x
+        - collider_info_two.sprite.custom_size.unwrap().x / 2.0;
+
+    interval_two_start <= interval_one_end
+}
+
+fn sort_and_sweep<'a>(collider_infos: &'a mut Vec<ColliderInfo>) -> Vec<&'a [ColliderInfo<'a>]> {
+    collider_infos.sort_unstable_by(|collider_info_one, collider_info_two| {
+        interval_ordering(collider_info_one, collider_info_two)
+    });
+
+    collider_infos
+        .group_by(|collider_info_one, collider_info_two| {
+            group_by_helper(collider_info_one, collider_info_two)
+        })
+        .filter(|vec2_slice| vec2_slice.len() != 1)
+        .collect::<Vec<&[ColliderInfo]>>()
+}
+
+fn aabb_collisions<'a>(
+    possibly_colliding_entities: (&'a ColliderInfo, &'a ColliderInfo),
+) -> Option<CollisionInfo<'a>> {
+    let a_movement = possibly_colliding_entities.0.movement;
+    let b_movement = possibly_colliding_entities.1.movement;
+
+    match (a_movement, b_movement) {
+        // Invariant: Only Destroy happens when two moving objects collide (so far)
+        // NOTE I believe that destroy functionality needs relations
+        (Some(_a_movement), Some(_b_movement)) => None,
+        (Some(_movement), None) => {
+            determine_collision(possibly_colliding_entities.0, possibly_colliding_entities.1)
         }
+        (None, Some(_movement)) => {
+            determine_collision(possibly_colliding_entities.1, possibly_colliding_entities.0)
+        }
+        (None, None) => None,
     }
 }
 
 // Determines whether there a collision will occur in the next frame and then
 // delegates to another function that determines what kind of collision response there will be.
-fn determine_collision(
-    mut velocity: &mut Vec3,
-    moving_transform: &mut Transform,
-    moving_transform_size: &Vec2,
-    moving_collider_type: &ColliderType,
-    static_transform: &Transform,
-    static_transform_size: &Vec2,
-) {
-    let position_next_frame = *velocity * FIXED_TIMESTEP as f32 + moving_transform.translation;
+fn determine_collision<'a>(
+    moving_collider_info: &'a ColliderInfo,
+    static_collider_info: &'a ColliderInfo,
+) -> Option<CollisionInfo<'a>> {
+    let ColliderInfo {
+        transform: moving_transform,
+        sprite: moving_sprite,
+        collider_type,
+        movement: _,
+        entity: moving_entity,
+    } = moving_collider_info;
+
+    let ColliderInfo {
+        transform: static_transform,
+        sprite: static_sprite,
+        collider_type: _b_collider_type,
+        movement: _b_movement,
+        entity: static_entity,
+    } = static_collider_info;
+
+    let moving_transform_size = moving_sprite.custom_size.unwrap();
+    let static_transform_size = static_sprite.custom_size.unwrap();
 
     // The return value is the side of `B` that `A` has collided with. `Left` means that
     // `A` collided with `B`'s left side. `Top` means that `A` collided with `B`'s top side.
     // If the collision occurs on multiple sides, the side with the deepest penetration is returned.
     // If all sides are involved, `Inside` is returned.
 
-    if let Some(collision) = collide(
-        position_next_frame,
-        *moving_transform_size,
+    collide(
+        moving_transform.translation,
+        moving_transform_size,
         static_transform.translation,
-        *static_transform_size,
-    ) {
-        match moving_collider_type {
-            ColliderType::Nothing => {}
-            ColliderType::Stop => {
-                stop_moving_entity(
-                    &collision,
-                    moving_transform,
-                    moving_transform_size,
-                    static_transform,
-                    static_transform_size,
-                );
-            }
-            ColliderType::Reflect => {
-                reflect_entity(&collision, &mut velocity);
-            }
+        static_transform_size,
+    )
+    .and_then(|collision| {
+        Some(CollisionInfo {
+            collision,
+            collider_type,
+            moving_entity,
+            static_entity,
+        })
+    })
+}
+
+// Checks whether objects with collision components have collided.
+fn detect_collisions(
+    collisions_query: Query<(
+        &Transform,
+        &Sprite,
+        &ColliderType,
+        Option<&Movement>,
+        Entity,
+    )>,
+    mut commands: Commands,
+) {
+    let mut test = collisions_query
+        .iter()
+        .map(
+            |(transform, sprite, collider_type, movement, entity)| ColliderInfo {
+                transform,
+                sprite,
+                collider_type,
+                movement,
+                entity,
+            },
+        )
+        .collect::<Vec<ColliderInfo>>();
+
+    let test: Vec<&[ColliderInfo]> = sort_and_sweep(&mut test);
+
+    for possibly_colliding_entities in test {
+        let collisions: Vec<CollisionInfo> = possibly_colliding_entities
+            .iter()
+            .tuple_combinations::<(&ColliderInfo, &ColliderInfo)>()
+            .map(|entity_combinations| aabb_collisions(entity_combinations))
+            .flatten()
+            .collect();
+
+        // Might not need this. Head hurts but im close lol
+        for CollisionInfo {
+            collision,
+            collider_type,
+            moving_entity,
+            static_entity,
+        } in collisions
+        {
+            println!("collision");
+            match collider_type {
+                ColliderType::Reflect => {
+                    commands
+                        .entity(*moving_entity)
+                        .insert(Reflection { collision });
+                }
+                ColliderType::Stop => {
+                    commands.entity(*moving_entity).insert(Stop {
+                        collision,
+                        static_entity: *static_entity,
+                    });
+                }
+                ColliderType::Nothing => {}
+            };
         }
     }
 }
+
+struct CollisionInfo<'a> {
+    collision: Collision,
+    collider_type: &'a ColliderType,
+    moving_entity: &'a Entity,
+    static_entity: &'a Entity,
+}
+
+// TODO this component should be a sparseset component
+#[derive(Component)]
+struct Reflection {
+    collision: Collision,
+}
+
+// TODO
+// All right I can see a few potential bugs from the system you have written.
+// Taking a look at the print statements I have thrown around here, I think everything is broadly working
+// in that sense that the code you wrote is doing what you expect. The problem is what you expect
+// isn't doing what you want.
+//
+// There are multiple collision checks per each reflection check. Taking a look at the logs you have
+// potentiallly 2-4 collision checks per each reflection. Really you want it to be 1-1, so you might be able to solve this through
+// system set ordering.
+//
+// The other potential problem is that while you are reflecting, you aren't going far enough in a frame to be away enough
+// from the collision, so you are colliding twice, which is causing another reflection loop, and you are entering into an infinite loop.
+// Maybe the solution to this is to provide some kind of buffer for how often a reflection can occur? This could in theory be solved by having
+// one movement system run before a collision system. Because then we atleast get ONE movement and that will probs get the object moving in the right direction,
+// ie, away from a collision.
+//
+// Another thought is about commands. On Bevy 0.9, commands are run at the end of the stage, and that means these systems might be
+// running at odd times. The way to fix this would be to upgrade to 0.10 LOL, cause then I can schedule when the commands are applied specifically.
+// Yeah this is likely one of the problems as well.
+//
+// Command application is now signaled through an exclusive system called apply_system_buffers. You can add instances of this system anywhere in
+// your schedule. If one system depends on the effects of commands from another, make sure an apply_system_buffers appears somewhere between them.
+//
+// I think a key takeaway from all this is that when and how I run my systems is now important for me to make progress in my game. It is no longer
+// practical for me to just say "everything runs in parallel". Practically, I need to get an idea for the ordering of systems in my game.
 
 // Reflects the velocity of the entity
-fn reflect_entity(collision: &Collision, velocity: &mut Vec3) {
-    match collision {
-        Collision::Left => *velocity = Vec3::new(velocity.x * -1.0, velocity.y, 0.0),
-        Collision::Right => *velocity = Vec3::new(velocity.x * -1.0, velocity.y, 0.0),
-        Collision::Top => *velocity = Vec3::new(velocity.x, velocity.y * -1.0, 0.0),
-        Collision::Bottom => *velocity = Vec3::new(velocity.x, velocity.y * -1.0, 0.0),
-        Collision::Inside => {}
+fn reflect_entity(mut query: Query<(&Reflection, &mut Movement, Entity)>, mut commands: Commands) {
+    for (reflection, mut movement, entity) in &mut query {
+        println!("{:?}", reflection.collision);
+        match reflection.collision {
+            Collision::Left => {
+                movement.velocity = Vec3::new(movement.velocity.x * -1.0, movement.velocity.y, 0.0)
+            }
+            Collision::Right => {
+                movement.velocity = Vec3::new(movement.velocity.x * -1.0, movement.velocity.y, 0.0)
+            }
+            Collision::Top => {
+                movement.velocity = Vec3::new(movement.velocity.x, movement.velocity.y * -1.0, 0.0)
+            }
+            Collision::Bottom => {
+                movement.velocity = Vec3::new(movement.velocity.x, movement.velocity.y * -1.0, 0.0)
+            }
+            Collision::Inside => {}
+        }
+
+        commands.entity(entity).remove::<Reflection>();
     }
 }
 
-// Resets the position of the moving transform to be the position right before the collision
-// that would have happened next frame.
+// TODO this component should be a sparseset component
+#[derive(Component)]
+struct Stop {
+    collision: Collision,
+    static_entity: Entity,
+}
+
+// Resets the position of the moving transform to be the position right before the collision.
 fn stop_moving_entity(
-    collision: &Collision,
-    moving_transform: &mut Transform,
-    moving_transform_size: &Vec2,
-    static_transform: &Transform,
-    static_transform_size: &Vec2,
+    mut moving_transform_query: Query<(&Stop, &mut Transform, &Sprite, Entity)>,
+    static_transform_query: Query<(&Transform, &Sprite, Without<Stop>)>,
+    mut commands: Commands,
 ) {
-    match collision {
-        Collision::Left => {
-            let one_x_pos = static_transform.translation.x - static_transform_size.x / 2.0;
-            let two_cur_x_pos = moving_transform.translation.x + moving_transform_size.x / 2.0;
-            moving_transform.translation.x =
-                (one_x_pos - two_cur_x_pos) + moving_transform.translation.x;
-        }
-        Collision::Right => {
-            let one_x_pos = static_transform.translation.x + static_transform_size.x / 2.0;
-            let two_cur_x_pos = moving_transform.translation.x - moving_transform_size.x / 2.0;
+    for (stop, mut moving_transform, moving_sprite, entity) in &mut moving_transform_query {
+        let Stop {
+            collision,
+            static_entity,
+        } = stop;
 
-            moving_transform.translation.x =
-                (one_x_pos - two_cur_x_pos) + moving_transform.translation.x;
-        }
-        Collision::Top => {
-            let one_y_pos = static_transform.translation.y + static_transform_size.y / 2.0;
-            let two_cur_y_pos = moving_transform.translation.y - moving_transform_size.y / 2.0;
+        let moving_transform_size = moving_sprite.custom_size.unwrap();
+        let static_transform = static_transform_query
+            .get_component::<Transform>(*static_entity)
+            .unwrap();
 
-            moving_transform.translation.y =
-                (one_y_pos - two_cur_y_pos) + moving_transform.translation.y;
-        }
-        Collision::Bottom => {
-            let one_y_pos = static_transform.translation.y - static_transform_size.y / 2.0;
-            let two_cur_y_pos = moving_transform.translation.y + moving_transform_size.y / 2.0;
+        let static_transform_size = static_transform_query
+            .get_component::<Sprite>(*static_entity)
+            .unwrap()
+            .custom_size
+            .unwrap();
 
-            moving_transform.translation.y =
-                (one_y_pos - two_cur_y_pos) + moving_transform.translation.y;
+        match collision {
+            Collision::Left => {
+                let one_x_pos = static_transform.translation.x - static_transform_size.x / 2.0;
+                let two_cur_x_pos = moving_transform.translation.x + moving_transform_size.x / 2.0;
+                moving_transform.translation.x =
+                    (one_x_pos - two_cur_x_pos) + moving_transform.translation.x;
+            }
+            Collision::Right => {
+                let one_x_pos = static_transform.translation.x + static_transform_size.x / 2.0;
+                let two_cur_x_pos = moving_transform.translation.x - moving_transform_size.x / 2.0;
+
+                moving_transform.translation.x =
+                    (one_x_pos - two_cur_x_pos) + moving_transform.translation.x;
+            }
+            Collision::Top => {
+                let one_y_pos = static_transform.translation.y + static_transform_size.y / 2.0;
+                let two_cur_y_pos = moving_transform.translation.y - moving_transform_size.y / 2.0;
+
+                moving_transform.translation.y =
+                    (one_y_pos - two_cur_y_pos) + moving_transform.translation.y;
+            }
+            Collision::Bottom => {
+                let one_y_pos = static_transform.translation.y - static_transform_size.y / 2.0;
+                let two_cur_y_pos = moving_transform.translation.y + moving_transform_size.y / 2.0;
+
+                moving_transform.translation.y =
+                    (one_y_pos - two_cur_y_pos) + moving_transform.translation.y;
+            }
+            Collision::Inside => {}
         }
-        Collision::Inside => {}
+
+        commands.entity(entity).remove::<Stop>();
     }
 }
 

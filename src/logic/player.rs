@@ -72,10 +72,10 @@ fn player_keyboard_input(
 }
 
 // The player always faces the cursor
-fn look_at_cursor(windows: Res<Windows>, mut player_query: Query<&mut Transform, With<Player>>) {
+fn look_at_cursor(windows: Query<&Window>, mut player_query: Query<&mut Transform, With<Player>>) {
     // Games typically only have one window (the primary window).
     // For multi-window applications, you need to use a specific window ID here.
-    let window = windows.get_primary().unwrap();
+    let window = windows.single();
 
     // cursor is inside the window, position given
     if let Some(position) = window.cursor_position() {
